@@ -187,7 +187,7 @@ handles.currentimage = uicontrol(handles.datapanel,'units','pixels','Position',[
 uicontrol(handles.datapanel,'units','pixels','Position',[1 128 75 15],'Style','text','String','Current frame:','HorizontalAlignment','right','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 handles.currentframe = uicontrol(handles.datapanel,'units','pixels','Position',[80 128 80 15],'Style','text','String','','HorizontalAlignment','left','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 handles.currentcellsT = uicontrol(handles.datapanel,'units','pixels','Position',[1 114 75 15],'Style','text','String','Selected cell:','HorizontalAlignment','right','FontUnits','pixels','FontName','Helvetica','FontSize',10);
-handles.currentcells = uicontrol(handles.datapanel,'units','pixels','Position',[80 114 85 15],'Style','text','String','','HorizontalAlignment','left','FontUnits','pixels','FontName','Helvetica','FontSize',10);
+handles.currentcells = uicontrol(handles.datapanel,'units','pixels','Position',[80 114 85 15],'Style','edit','String','','callback',@cellId_cbk,'HorizontalAlignment','left','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 uicontrol(handles.datapanel,'units','pixels','Position',[1 100 75 15],'Style','text','String','Ancestors:','HorizontalAlignment','right','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 handles.ancestors = uicontrol(handles.datapanel,'units','pixels','Position',[80 100 80 15],'Style','text','String','','HorizontalAlignment','left','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 uicontrol(handles.datapanel,'units','pixels','Position',[1 86 75 15],'Style','text','String','Descendants:','HorizontalAlignment','right','FontUnits','pixels','FontName','Helvetica','FontSize',10);
@@ -2202,6 +2202,257 @@ function selectFrame(hObject, eventdata)%#ok<INUSD>
     displaySelectedCells();
     showCellData();
     updateslider();
+end
+%*****************************************************************************
+function rebuild_descendants(cellId,frame,cellList)%#ok<INUSD>
+    % traverse to root of ancestry tree and rebuild descendants by
+    % recursively 
+end
+%*****************************************************************************
+function [birth_frame] = find_cell_birth(cellId, frame, cellList)
+    % Finds the frame in which cellId was birthed (i.e. the first frame
+    % cellId is present, before or including `frame`)
+    % returns -1 if cellId is not found in `frame`.
+    if ~oufti_doesCellExist(cellId, frame, cellList)
+        birth_frame = -1;
+        return
+    end
+    
+    birth_frame = frame;
+    for ii=frame:-1:1
+        if ~oufti_doesCellExist(cellId, birth_frame, cellList)
+            birth_frame = birth_frame + 1;
+            return
+        else
+            birth_frame = birth_frame - 1;
+        end
+    end
+    birth_frame = 1;
+end
+%*****************************************************************************
+
+function cellId_cbk(hObject, eventdata)%#ok<INUSD>
+    % reassign a cell with `old_cellId` from the point it is birthed to
+    % have `new_cellId` in this and all future frames. If `new_cellId`
+    % exists in the previous frame and has ancestors, then this cell 
+    % and all its descendants will retain that ancestry. 
+    
+    % If new_cellId exists in this frame, error
+    % If new_cellId has descendants in the frame before `old_cellId` is birthed, error
+    
+    if length(selectedList) > 1
+        errordlg('Cannot edit the cell number of more than one cell at once','Invalid Input','modal')
+    end
+    
+    listOfCells = [];
+    listOfCells.erase = [oufti_cellId2PositionInFrame(selectedList(1),frame,cellList)];
+    
+    old_cellId = selectedList(1);
+    new_cellId_str = get(hObject,'String');
+    new_cellId_created = 0; 
+    
+    % if the new cellId is blank, assign a new number
+    if strcmp(new_cellId_str,'')
+       new_cellId = getDaughterNum();
+       % remember that a new daughter cell number was assigned so we don't
+       % go looking for it later. 
+       new_cellId_created = 1;
+    else
+        new_cellId = str2num(new_cellId_str);
+        if isnan(new_cellId)
+            errordlg('You must enter a numeric value for the new cell number','Invalid Input','modal')
+            uicontrol(hObject)
+            return
+        end
+    end
+    
+    % find whether the new_cellId exists in a later frame; if so, error
+    where_new_cellId_exists = where_does_cell_ID_exist(new_cellId, frame, cellList);
+    if where_new_cellId_exists ~= -1
+        errordlg(sprintf('Cell %d already exists in frame %d',new_cellId, where_new_cellId_exists),...
+            'Invalid Input','modal')
+    end
+    
+    % go back to the frame in which old_cellId was birthed and replace
+    % starting there
+    birth_frame = find_cell_birth(old_cellId, frame, cellList);
+    if birth_frame == -1 || birth_frame == 0
+        errordlg(sprintf(['Could not find the frame in which %d was birthed. '...
+            'If you intended to create a new cell ID, enter "" and oufti will assign one'],num2str(old_cellId)),...
+            'Invalid Input','modal')
+        return
+    end
+    
+    % TODO: warn if birth_frame ~= frame
+    
+    % find if new_cellId has any ancestors
+    if ~oufti_doesCellExist(new_cellId, birth_frame-1, cellList)
+        errordlg(sprintf('Could not find cell %d in frame %d (the frame before cell %d was birthed)',...
+            new_cellId, birth_frame-1, old_cellId),...
+            'Invalid Input','modal')
+        return
+    end
+    if new_cellId_created
+        new_ancestors = [];
+    else
+        previous_frame_cellData = oufti_getCellStructure(new_cellId, birth_frame-1, cellList);
+        new_ancestors = [previous_frame_cellData.ancestors new_cellId];
+    end
+    
+    % iterate across all frames from birth_frame onward and
+    for ii = birth_frame:last_frame(cellList)
+        
+        % 1) reassign old_cellId to new_cellId
+        if oufti_doesCellExist(old_cellId, ii, cellList)
+            positionInFrame = oufti_cellId2PositionInFrame(old_cellId, ii, cellList);
+            celldata = oufti_getCellStructure(old_cellId, ii, cellList);
+            
+            % check if this cell has any ancestry; if it does, prompt to
+            % user to confirm.
+            if ~isempty(celldata.ancestors)
+    
+                errordlg(sprintf(['You are trying to rename cell %d to %d. However, cell %d is not an orphan; ...'...
+                    'it has ancestors %s at frame %d (%d frames after it was birthed in frame %d). '...
+                    'This is probably not what you intended. If it is, go back to frame %d and make cell %d an orphan by '...
+                    'setting the descendants of cell %d to "".'],...
+                    old_cellId, new_cellId, old_cellId,...
+                    num2str(celldata.ancestors), ii, ii-birth_frame, birth_frame,...
+                    birth_frame-1, new_cellId, celldata.ancestors(end)),...
+                    'Error','modal')
+                return
+            end
+                        
+            % reassign `old_cellId` to have ancestors of `new_cellId`
+            % (omit the last element of `new_ancestors`, which is
+            % `new_cellId` itself)
+            cellList = oufti_addFieldToCellList(old_cellId, ii, ...
+                'ancestors', new_ancestors(1:end-1), cellList);
+            
+            % reassign `old_cellId` to have `birthframe` of `new_cellId`
+            cellList = oufti_addFieldToCellList(old_cellId, ii, ...
+                'birthframe', celldata.birthframe, cellList);
+            
+            % rename old_cellId to new_cellId
+            cellList.cellId{ii}(positionInFrame) = new_cellId;
+            
+            fprintf(['Cell %d in frame %d changed to cell %d. '...
+                'Ancestry changed to %s. birthframe changed to frame %d.'],...
+                old_cellId,ii,new_cellId,num2str(new_ancestry),celldata.birthframe)
+
+        end
+        
+        % 2) assign any cells that have old_cellId in their `ancestors` to have
+        % the ancestry of new_cellId
+
+        % for each cell position jj in frame ii
+        cellStructures = cellList.meshData{ii};
+        cellIdNums = cellList.cellId{ii};
+        for jj = 1:length(cellIdNums)
+            
+            % see if old_cellId is an ancestor of this cell
+            old_ancestors = cellStructures{jj}.ancestors;
+            ancestry_pos = find(old_ancestors  == old_cellId);
+            
+            % if it is an ancestor
+            if length(ancestry_pos) == 1
+                
+                % construct a new ancestry, beginning with the ancestors of
+                % new_cellId, then including new_cellId in place of
+                % old_cellId, and finally with the subsequent chain of
+                % ancestors
+                new_ancestry = [new_ancestors old_ancestors(ancestry_pos+1:end)];
+                                
+                cellList = oufti_addFieldToCellList(cellIdNums(jj), ii, ...
+                        'ancestors', new_ancestry, cellList);
+                
+                fprintf('Cell %d ancestry changed from %s to %s',...
+                    cellIdNums(jj),num2str(old_ancestors),num2str(new_ancestry))
+
+                    
+            elseif length(ancestry_pos) > 1
+                errordlg(sprintf('Invalid lineage: cell %d found in ancestry of cell %d more than once in frame %d (ancestry: %s)',...
+                    old_cellId, cellIdNums{jj}, ii, num2str(cellStructures{jj}.ancestors)),...
+                    'Invalid Input','modal')
+            end
+        end
+    end
+    saveundo;
+    
+    listOfCells.add = [oufti_cellId2PositionInFrame(new_cellId,frame,cellList)];
+    displayCellsForManualOperations(listOfCells,1);
+    selectedList(1) = new_cellId;
+    displaySelectedCells();
+    displayCells();
+    showCellData();
+
+end
+%*****************************************************************************
+function last_frame = last_frame(cellList)
+    last_frame = oufti_getLengthOfCellList(cellList.meshData);
+end
+%*****************************************************************************
+function [cframe] = where_does_cell_ID_exist(celln, frame, cellList)
+    for cframe=frame:oufti_getLengthOfCellList(cellList) %length(cellList)
+        if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
+            return
+        end
+    end
+    cframe = -1;
+end
+%*****************************************************************************
+function [frame, daughters] = find_cell_division(cellId, start_frame, cellList)
+    % find if cellId ever divides; if so, return on what frame and the
+    % cellIDs of its daughter cells. If not, return -1 and []. 
+
+    for frame = start_frame:last_frame(cellList)
+        cellData = oufti_getCellStructure(cellId, frame, cellList);
+        if ~isempty(cellData.descendants)
+            daughters = cellData.descendants;
+            return
+        end
+    end
+    daughters = [];
+    frame = -1;
+end
+%*****************************************************************************
+function cellList = replace_ancestry(cellId, frame, old_cellId, new_ancestors, cellList)
+    % recursively follow `cellId` and its descendants starting at `frame`.
+    % If `old_cellId` is an ancestor, replace it with `new_ancestors`
+    
+    celldata = oufti_getCellStructure(cellId, frame, cellList);
+    if isempty(celldata)
+        return
+    end
+    
+    % see if old_cellId is an ancestor of this cell
+    ancestry_pos = find(celldata.ancestors == old_cellId);
+
+    % if it is an ancestor
+    if length(ancestry_pos) == 1
+
+        % construct a new ancestry, beginning with the ancestors of
+        % new_cellId, then including new_cellId in place of
+        % old_cellId, and finally with the subsequent chain of
+        % ancestors
+        new_ancestry = [new_ancestors celldata.ancestors(ancestry_pos+1:end)];
+
+        cellList = oufti_addFieldToCellList(celldata, ii, ...
+                'ancestors', new_ancestry, cellList);
+            
+        for frame = frame:last_frame(cellList)
+            celldata = oufti_getCellStructure(cellId, frame, cellList);
+            if ~isempty(celldata.descendants)
+                cellList = replace_ancestry(celldata.descendants(1), frame, old_cellId, new_ancestors, cellList);
+                cellList = replace_ancestry(celldata.descendants(2), frame, old_cellId, new_ancestors, cellList);
+                return
+            end
+        end
+
+    elseif length(ancestry_pos) > 1
+        errordlg(sprintf('Invalid lineage: cell %d found in ancestry of cell %d more than once in frame %d (ancestry: %s)',...
+            old_cellId, cellId, ii, num2str(celldata.ancestors)),...
+            'Invalid Input','modal')
+    end
 end
 %*****************************************************************************
 function manual_cbk(hObject, eventdata)%#ok<INUSD>
