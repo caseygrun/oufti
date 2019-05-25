@@ -2323,8 +2323,8 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
        new_cellId_created = 1;
     else
         new_cellId = str2num(new_cellId_str);
-        if isnan(new_cellId)
-            errordlg('You must enter a numeric value for the new cell number','Invalid Input','modal')
+        if isnan(new_cellId) || (length(new_cellId) ~= 1)
+            errordlg('You must enter a single numeric value for the new cell number','Invalid Input','modal')
             uicontrol(hObject)
             return
         end
@@ -2347,7 +2347,22 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
         return
     end
     
-    % TODO: warn if birth_frame ~= frame
+    % warn if birth_frame ~= frame
+    if birth_frame ~= frame
+        birthFrameWarning = questdlg(sprintf(['You are trying to rename cell %d to %d at frame %d; '...
+            'however, cell %d first appears on frame %d. Do you wish to \n'...
+            '- rename all instances of cell %d to cell %d, starting from the '...
+            'frame it first appeared (frame %d; recommended), \n'...
+            '- or just rename cell %d to cell %d starting from this frame?'],...
+            old_cellId, new_cellId, ...
+            old_cellId, birth_frame, old_cellId,...
+            new_cellId, birth_frame, old_cellId, new_cellId),...
+         'Warning','Rename from birth frame','Rename from this frame','Rename from birth frame');   
+        if strCmp(birthFrameWarning,'Rename from this frame')
+            birth_frame = frame;
+        end
+    
+    end
     
     % find if new_cellId has any ancestors
     if ~oufti_doesCellExist(new_cellId, birth_frame-1, cellList)
@@ -2401,7 +2416,7 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
             
             fprintf(['Cell %d in frame %d changed to cell %d. '...
                 'Ancestry changed to %s. birthframe changed to frame %d.'],...
-                old_cellId,ii,new_cellId,num2str(new_ancestry),celldata.birthframe)
+                old_cellId,ii,new_cellId,num2str(new_ancestors(1:end-1)),celldata.birthframe)
 
         end
         
