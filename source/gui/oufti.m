@@ -132,6 +132,8 @@ handles.signalStat = uimenu(handles.tools,'Label','signal statistics');
                 uimenu(handles.tools,'Label','cellList filter','Callback','cellListFilterFcn');
                 uimenu(handles.tools,'Label','export cellList to csv','Callback','exportCellListFcn');
                 uimenu(handles.tools,'Label','import csv to cellList','Callback','importCsvFcn');
+                
+                uimenu(handles.tools,'Label','display lineage tree','Callback',@displayLineageTree);
 
 %----------------------------------------------------------------------------------------
 
@@ -2188,16 +2190,13 @@ displaySelectedCells
 showCellData
 end
 %*****************************************************************************
-%update:  Ahmad Paintdakhi July 2, 2014, this routine is for 
-%browing directly to a frame specified instead of going through scrollbar,
-%which is convenient for large data sets.
-function selectFrame(hObject, eventdata)%#ok<INUSD>
-    frame = str2double(get(handles.selectgroupedit,'String'));
+function selectFrameAndCells(new_frame, cellIds)%#ok<INUSD>
+    frame = new_frame;
     drawnow();pause(0.005);
     displayImage();
     set(handles.currentframe,'String',[num2str(frame) ' of ' num2str(imsizes(end,3))]);
     displayCells();
-    selectedList = selNewFrame(selectedList,prevframe,frame);
+    selectedList = cellIds;
     selDispList = [];
     displaySelectedCells();
     showCellData();
@@ -2217,6 +2216,7 @@ function [birth_frame] = find_cell_birth(cellId, frame, cellList)
         birth_frame = -1;
         return
     end
+function displayLineageTree(hObject, eventdata)
     
     birth_frame = frame;
     for ii=frame:-1:1
@@ -2272,28 +2272,75 @@ function cellList = replace_ancestry(cellId, frame, new_ancestors, cellList)
     %     cellList:
     %       frame:  1    2    3    4
     %       cellId: 2 -> 3 -> 9 -> 10
+    % find largest cellId in use
+    numcells = max(cell2mat(cellList.cellId(~cellfun('isempty',cellList.cellId))));
     
-    % for each frame until the end of the movie
-    for cframe = frame:last_frame(cellList)
-        celldata = oufti_getCellStructure(cellId, cframe, cellList);
-        if isempty(celldata)
-            return
-        end
+    polarity=NaN(1,numcells);
+    birthframe=zeros(1,numcells);
+    ancestors=cell(1,numcells);
+    descendants=cell(1,numcells);
+    
+    cellExists = zeros(1,numcells);
+    
+    tspan = oufti_getLengthOfCellList(cellList);
+    % for each frame
+    for cframe=1:tspan
         
-        % update ancestors in this frame
-        cellList = oufti_addFieldToCellList(cellId, frame, ...
-            'ancestors', new_ancestors, cellList);
+        % get all cellIds in this frame
+        cellIDs=double(cellList.cellId{cframe});
+        meshinfo=cellList.meshData{cframe};
         
-        % if `cellId` divides this frame
-        if ~isempty(celldata.descendants)
+        % for each cell in frame
+        for cellnum=1:cellListN(cframe)
+            cellExists(cellIDs(cellnum)) = 1;
             
-            % recurse and replace the ancestry of each descendant
-            cellList = replace_ancestry(celldata.descendants(1), cframe+1, [new_ancestors cellId], cellList);
-            cellList = replace_ancestry(celldata.descendants(2), cframe+1, [new_ancestors cellId], cellList);
-            return
+            birthframe(cellIDs(cellnum))=meshinfo{cellnum}.birthframe;
+            polarity(cellIDs(cellnum))=meshinfo{cellnum}.polarity;
+            ancestors{cellIDs(cellnum)}=meshinfo{cellnum}.ancestors;
+            descendants{cellIDs(cellnum)}=meshinfo{cellnum}.descendants;
         end
     end
+    
+    nodes=zeros(1,numcells);
+    A=find(cellfun('isempty',ancestors)==0);
+    for i=1:length(A)
+        nodes(A(i))=max(ancestors{A(i)});
+    end
+    
+    figure; axis off; hold on
+    trimtreeplot(nodes)
+    [x, y, h, s]=trimtreelayout(nodes);
+    
+    function cbk = get_click_cbk(cellId, birth_frame)
+        cbk = @(~,~) selectFrameAndCells(birth_frame, cellId);
+    end
+    for i = 1 :numcells
+        p = text(x(i),y(i),num2str(i),'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
+        
+        cell_click_cbk = get_click_cbk(i,birthframe(i));
+        set(p,'ButtonDownFcn',cell_click_cbk,...
+           'PickableParts','all') %,'FaceColor','none')
+    end
+    hold off
 end
+
+%*****************************************************************************
+%update:  Ahmad Paintdakhi July 2, 2014, this routine is for 
+%browing directly to a frame specified instead of going through scrollbar,
+%which is convenient for large data sets.
+function selectFrame(hObject, eventdata)%#ok<INUSD>
+    frame = str2double(get(handles.selectgroupedit,'String'));
+    drawnow();pause(0.005);
+    displayImage();
+    set(handles.currentframe,'String',[num2str(frame) ' of ' num2str(imsizes(end,3))]);
+    displayCells();
+    selectedList = selNewFrame(selectedList,prevframe,frame);
+    selDispList = [];
+    displaySelectedCells();
+    showCellData();
+    updateslider();
+end
+
 %*****************************************************************************
 function cellId_cbk(hObject, eventdata)%#ok<INUSD>
     % reassign a cell with `old_cellId` from the point it is birthed to
