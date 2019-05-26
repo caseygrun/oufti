@@ -2202,76 +2202,8 @@ function selectFrameAndCells(new_frame, cellIds)%#ok<INUSD>
     showCellData();
     updateslider();
 end
-%*****************************************************************************
-function rebuild_descendants(cellId,frame,cellList)%#ok<INUSD>
-    % traverse to root of ancestry tree and rebuild descendants by
-    % recursively 
-end
-%*****************************************************************************
-function [birth_frame] = find_cell_birth(cellId, frame, cellList)
-    % Finds the frame in which cellId was birthed (i.e. the first frame
-    % cellId is present, before or including `frame`)
-    % returns -1 if cellId is not found in `frame`.
-    if ~oufti_doesCellExist(cellId, frame, cellList)
-        birth_frame = -1;
-        return
-    end
 function displayLineageTree(hObject, eventdata)
     
-    birth_frame = frame;
-    for ii=frame:-1:1
-        if ~oufti_doesCellExist(cellId, birth_frame, cellList)
-            birth_frame = birth_frame + 1;
-            return
-        else
-            birth_frame = birth_frame - 1;
-        end
-    end
-    birth_frame = 1;
-end
-%*****************************************************************************
-function last_frame = last_frame(cellList)
-    last_frame = oufti_getLengthOfCellList(cellList);
-end
-%*****************************************************************************
-function [cframe] = where_does_cell_ID_exist(celln, frame, cellList)
-    for cframe=frame:oufti_getLengthOfCellList(cellList) %length(cellList)
-        if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
-            return
-        end
-    end
-    cframe = -1;
-end
-%*****************************************************************************
-function [frame, daughters] = find_cell_division(cellId, start_frame, cellList)
-    % find if cellId ever divides; if so, return on what frame and the
-    % cellIDs of its daughter cells. If not, return -1 and []. 
-
-    for frame = start_frame:last_frame(cellList)
-        cellData = oufti_getCellStructure(cellId, frame, cellList);
-        if ~isempty(cellData) && ~isempty(cellData.descendants)
-            daughters = cellData.descendants;
-            return
-        end
-    end
-    daughters = [];
-    frame = -1;
-end
-%****************************************************************************
-function cellList = replace_ancestry(cellId, frame, new_ancestors, cellList)
-    % Change the lineage tree such that, starting at `frame`, `cellId` and 
-    % its descendants now descend from `new_ancestors`.
-    % If `old_cellId` is not [] then if `cellId` or its descendents
-    % descend from `old_cellId`, `old_cellId` and its ancestors will be
-    % replaced with `new_ancestors`. 
-    % example 1:
-    %     cellList:
-    %       frame:  1    2    3    4
-    %       cellId: 5 -> 7 -> 9 -> 10
-    %     cellList = replace_ancestry(9, 3, [2 3], cellList)
-    %     cellList:
-    %       frame:  1    2    3    4
-    %       cellId: 2 -> 3 -> 9 -> 10
     % find largest cellId in use
     numcells = max(cell2mat(cellList.cellId(~cellfun('isempty',cellList.cellId))));
     
@@ -2378,7 +2310,7 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
     end
     
     % find whether the new_cellId exists in a later frame; if so, error
-    where_new_cellId_exists = where_does_cell_ID_exist(new_cellId, frame, cellList);
+    where_new_cellId_exists = whereDoesCellIdExist(new_cellId, frame, cellList);
     if where_new_cellId_exists ~= -1
         errordlg(sprintf('Cell %d already exists in frame %d',new_cellId, where_new_cellId_exists),...
             'Invalid Input','modal')
@@ -2386,7 +2318,7 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
     
     % go back to the frame in which old_cellId was birthed and replace
     % starting there
-    birth_frame = find_cell_birth(old_cellId, frame, cellList);
+    birth_frame = findCellBirth(old_cellId, frame, cellList);
     if birth_frame == -1 || birth_frame == 0
         errordlg(sprintf(['Could not find the frame in which %d was birthed. '...
             'If you intended to create a new cell ID, enter "" and oufti will assign one'],num2str(old_cellId)),...
@@ -2426,7 +2358,7 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
     end
     
     % iterate across all frames from birth_frame onward and
-    for ii = birth_frame:last_frame(cellList)
+    for ii = birth_frame:oufti_getLengthOfCellList(cellList)
         
         % 1) reassign old_cellId to new_cellId
         if oufti_doesCellExist(old_cellId, ii, cellList)
@@ -2583,7 +2515,7 @@ function descendants_cbk(hObject, eventdata)%#ok<INUSD>
         disp(num2str(new_descendants))        
         
         % check if cellId already has any descendants, and warn if so
-        [division_frame, old_daughters] = find_cell_division(cellId, frame, cellList);
+        [division_frame, old_daughters] = findCellDivision(cellId, frame, cellList);
         if division_frame ~= -1
             divisionWarning = questdlg(sprintf(['You are trying to indicate that after this frame (%d), '...
                 'cell %d divides into two daughter cells %s. However, cell %d already divides into '...
@@ -2594,8 +2526,8 @@ function descendants_cbk(hObject, eventdata)%#ok<INUSD>
             if strCmp(divisionWarning,'Cancel')
                 return
             end
-            cellList = replace_ancestry(old_daughters(1), frame+1, [], cellList);
-            cellList = replace_ancestry(old_daughters(2), frame+1, [], cellList);
+            cellList = replaceAncestry(old_daughters(1), frame+1, [], cellList);
+            cellList = replaceAncestry(old_daughters(2), frame+1, [], cellList);
             
         end
         
@@ -2606,7 +2538,7 @@ function descendants_cbk(hObject, eventdata)%#ok<INUSD>
         % update its ancestry to include that of cellId
         new_ancestry = [celldata.ancestors cellId];
         for ii = 1:length(new_descendants)
-            cellList = replace_ancestry(new_descendants(ii), frame+1, new_ancestry, cellList);
+            cellList = replaceAncestry(new_descendants(ii), frame+1, new_ancestry, cellList);
         end
             
         listOfCells.add(1) = oufti_cellId2PositionInFrame(selectedList(1),frame,cellList);
