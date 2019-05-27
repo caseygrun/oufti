@@ -1842,7 +1842,9 @@ function showCellData
     if isempty(selectedList) || ~oufti_doesFrameExist(frame, cellList)
         set(handles.currentcellsT,'String','Selected cell:');
         set(handles.currentcells,'String','No cells selected');
+        set(handles.currentcells,'Enable','off');
         set(handles.ancestors,'String','');
+        set(handles.ancestors,'Tooltip','');
         set(handles.descendants,'String','');
         set(handles.divisions,'String','');
         set(handles.stage,'String','');
@@ -1854,10 +1856,11 @@ function showCellData
         set(handles.currentcellsT,'String','Selected cell:');
         celldata = oufti_getCellStructure(selectedList, frame, cellList);
         celldata = getextradata(celldata);
+        set(handles.currentcells,'Enable','on');
         set(handles.currentcells,'String',[num2str(selectedList) ' of ' num2str(oufti_getFrameLength(frame, cellList))]);
-        if isempty(celldata.ancestors), d='No ancestors'; else d=num2str(celldata.ancestors); end; set(handles.ancestors,'String',d);
+        if isempty(celldata.ancestors), d='No ancestors'; else d=num2str(celldata.ancestors); end; set(handles.ancestors,'String',d); set(handles.ancestors,'Tooltip',d);
         if isempty(celldata.descendants), d='No descendants'; else d=num2str(celldata.descendants); end; set(handles.descendants,'String',d);
-        if isempty(celldata.divisions), d='No divisions'; else d=num2str(celldata.divisions); end; set(handles.divisions,'String',d);
+        if isempty(celldata.divisions), d='No divisions'; else d=num2str(celldata.divisions); end; set(handles.divisions,'String',d); set(handles.divisions,'Tooltip',d);
         %set(handles.stage,'String',num2str(celldata.stage));
         if isfield(celldata,'area') && isfield(celldata,'length'), if isempty(celldata.area) || isempty(celldata.length), d=''; else d=num2str(celldata.area/celldata.length,'%.2f'); end; else d='No data'; end; set(handles.celldata.width,'String',d);
         if isfield(celldata,'length'), if isempty(celldata.length), d=''; else d=num2str(celldata.length,'%.2f'); end; else d='No data'; end; set(handles.celldata.length,'String',d);
@@ -1866,6 +1869,7 @@ function showCellData
     else
         set(handles.currentcellsT,'String','Selected cells:');
         set(handles.currentcells,'String',[num2str(length(selectedList)) ' cells']);
+        set(handles.currentcells,'Enable','off');
         set(handles.ancestors,'String','');
         set(handles.descendants,'String','');
         set(handles.divisions,'String','');
@@ -2337,7 +2341,7 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
             old_cellId, birth_frame, old_cellId,...
             new_cellId, birth_frame, old_cellId, new_cellId),...
          'Warning','Rename from birth frame','Rename from this frame','Rename from birth frame');   
-        if strCmp(birthFrameWarning,'Rename from this frame')
+        if strcmp(birthFrameWarning,'Rename from this frame')
             birth_frame = frame;
         end
     
@@ -2393,8 +2397,9 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
             % rename old_cellId to new_cellId
             cellList.cellId{ii}(positionInFrame) = new_cellId;
             
-            fprintf(['Cell %d in frame %d changed to cell %d. '...
-                'Ancestry changed to %s. birthframe changed to frame %d.'],...
+            fprintf(['Cell %d in frame %d changed to cell %d. \n'...
+                'Ancestry changed to %s. \n'...
+                'birthframe changed to frame %d.\n'],...
                 old_cellId,ii,new_cellId,num2str(new_ancestors(1:end-1)),celldata.birthframe)
 
         end
@@ -2474,7 +2479,7 @@ function descendants_cbk(hObject, eventdata)%#ok<INUSD>
         
         % read the new descendant list from the text box, parse to numbers
         d = get(hObject,'String');
-        if (strcmp(d,'No descendants') || strcmp(d,'') || strcmp(d,' '))
+        if (strcmp(d,'No descendants') || isempty(d) || strcmp(d,' '))
             new_descendants = [];
         else
             new_descendants = str2double(regexp(d ,'\d*','match'));
@@ -2517,13 +2522,22 @@ function descendants_cbk(hObject, eventdata)%#ok<INUSD>
         % check if cellId already has any descendants, and warn if so
         [division_frame, old_daughters] = findCellDivision(cellId, frame, cellList);
         if division_frame ~= -1
-            divisionWarning = questdlg(sprintf(['You are trying to indicate that after this frame (%d), '...
-                'cell %d divides into two daughter cells %s. However, cell %d already divides into '...
-                'cells %s on frame %d. If you choose to proceed, cells %s will be orphaned. '],...
-                frame, cellId, num2str(new_descendants), cellId,...
-                old_daughters, division_frame, old_daughters),...
-             'Warning',sprintf('Orphan cells %s',old_descendants),'Cancel','Cancel');   
-            if strCmp(divisionWarning,'Cancel')
+            if isempty(new_descendants)
+                divisionWarning = questdlg(sprintf(['You are trying to indicate that after this frame (%d), '...
+                    'cell %d does not divide. Cell %d currently divides into two daughter cells'...
+                    'cells %s on this frame. If you choose to proceed, cells %s will be orphaned. '],...
+                    frame, cellId, cellId,...
+                    num2str(old_daughters), num2str(old_daughters)),...
+                 'Warning',sprintf('Orphan cells %s',num2str(old_descendants)),'Cancel','Cancel');  
+            else
+                divisionWarning = questdlg(sprintf(['You are trying to indicate that after this frame (%d), '...
+                    'cell %d divides into two daughter cells %s. However, cell %d already divides into '...
+                    'cells %s on frame %d. If you choose to proceed, cells %s will be orphaned. '],...
+                    frame, cellId, num2str(new_descendants), cellId,...
+                    num2str(old_daughters), division_frame, num2str(old_daughters)),...
+                 'Warning',sprintf('Orphan cells %s',num2str(old_descendants)),'Cancel','Cancel');  
+            end
+            if strcmp(divisionWarning,'Cancel')
                 return
             end
             cellList = replaceAncestry(old_daughters(1), frame+1, [], cellList);
