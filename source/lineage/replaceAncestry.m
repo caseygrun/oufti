@@ -22,7 +22,7 @@ function cellList = replaceAncestry(cellId, frame, new_ancestors, cellList)
         end
         
         % update ancestors in this frame
-        cellList = oufti_addFieldToCellList(cellId, frame, ...
+        cellList = oufti_addFieldToCellList(cellId, cframe, ...
             'ancestors', new_ancestors, cellList);
         
         % if `cellId` divides this frame

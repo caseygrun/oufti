@@ -1,5 +1,5 @@
 %*****************************************************************************
-function [birth_frame] = find_cell_birth(cellId, frame, cellList)
+function [birth_frame] = findCellBirth(cellId, frame, cellList)
     % Finds the frame in which cellId was birthed (i.e. the first frame
     % cellId is present, before or including `frame`)
     % returns -1 if cellId is not found in `frame`.
