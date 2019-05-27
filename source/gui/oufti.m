@@ -133,7 +133,8 @@ handles.signalStat = uimenu(handles.tools,'Label','signal statistics');
                 uimenu(handles.tools,'Label','export cellList to csv','Callback','exportCellListFcn');
                 uimenu(handles.tools,'Label','import csv to cellList','Callback','importCsvFcn');
                 
-                handles.lineageTreeMenu = uimenu(handles.tools,'Label','display lineage tree','Callback',@displayLineageTree);
+                handles.lineageTreeMenu = uimenu(handles.tools,'Label','display lineage tree','Callback',@displayLineageTree,...
+                'Accelerator','T');
 
 %----------------------------------------------------------------------------------------
 
@@ -320,14 +321,14 @@ handles.removepolarity  = uicontrol(handles.polaritypanel,'units','pixels','Posi
 % Manual operations
 handles.specialpanel    = uipanel('units','pixels','pos',[504 5 163 66]);
 uicontrol(handles.specialpanel,'units','pixels','Position',[5 46 154 15],'Style','text','String','Manual','FontWeight','bold','FontUnits','pixels','FontName','Helvetica','FontSize',10);
-handles.join            = uicontrol(handles.specialpanel,'units','pixels','Position',[5 27 45 20],'Style','pushbutton','String','Join','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring','Force join two or more cells','FontUnits','pixels','FontName','Helvetica','FontSize',10);
-handles.split           = uicontrol(handles.specialpanel,'units','pixels','Position',[55 27 55 20],'Style','pushbutton','String','Split','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring','Force split a cell','FontUnits','pixels','FontName','Helvetica','FontSize',10);
-handles.addcell         = uicontrol(handles.specialpanel,'units','pixels','Position',[114 27 45 20],'Style','togglebutton','String','Add','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring',...
+handles.join            = uicontrol(handles.specialpanel,'units','pixels','Position',[5 27 45 20],'Style','pushbutton','String','<html><u>J</u>oin','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring','Force join two or more cells','FontUnits','pixels','FontName','Helvetica','FontSize',10);
+handles.split           = uicontrol(handles.specialpanel,'units','pixels','Position',[55 27 55 20],'Style','pushbutton','String','<html><u>S</u>plit','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring','Force split a cell','FontUnits','pixels','FontName','Helvetica','FontSize',10);
+handles.addcell         = uicontrol(handles.specialpanel,'units','pixels','Position',[114 27 45 20],'Style','togglebutton','String','<html><u>A</u>dd','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring',...
                             'Add a cell by clicking its outline (alg. 1) or centerline (alg. 4), doubleclick or press Enter to select, Esc to cancel','FontUnits','pixels','FontName','Helvetica','FontSize',10);
-handles.refine          = uicontrol(handles.specialpanel,'units','pixels','Position',[5 5 45 20],'Style','pushbutton','String','Refine','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring','Refine the cell outline under the current parameters','FontUnits','pixels','FontName','Helvetica','FontSize',10);
+handles.refine          = uicontrol(handles.specialpanel,'units','pixels','Position',[5 5 45 20],'Style','pushbutton','String','<html><u>R</u>efine','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring','Refine the cell outline under the current parameters','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 handles.refineAll       = uicontrol(handles.specialpanel,'units','pixels','Position',[55 5 55 20],'Style','pushbutton','String','Refine All','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring',...
                             'Refine all the cells that are selected or just went under drag mode using cell outline under the current parameters','FontUnits','pixels','FontName','Helvetica','FontSize',10);
-handles.drag            = uicontrol(handles.specialpanel,'units','pixels','Position',[114 5 45 20],'Style','togglebutton','String','Drag','FontUnits','pixels','FontName','Helvetica','FontSize',10,'callback',@manual_cbk,'KeyPressFcn',@selectclick);
+handles.drag            = uicontrol(handles.specialpanel,'units','pixels','Position',[114 5 45 20],'Style','togglebutton','String','<html><u>D</u>rag','FontUnits','pixels','FontName','Helvetica','FontSize',10,'callback',@manual_cbk,'KeyPressFcn',@selectclick);
 
 
 % Parameters
@@ -1937,7 +1938,17 @@ function mainkeypress(hObject, eventdata)
     elseif strcmp(c,'i') || double(c)==9
         invselection(hObject, eventdata)
     elseif strcmp(c,'a') || double(c)==1
-        selectall(hObject, eventdata)
+        if ~isempty(eventdata.Modifier)
+            for i=1:length(eventdata.Modifier)
+                if strcmp(eventdata.Modifier{i},'control')
+                    selectall(hObject, eventdata)
+                    return
+                end
+            end
+        end
+        toggleButtonState(handles.addcell)
+        manual_cbk(handles.addcell,[])
+        
     elseif strcmp(c,'g') || double(c)==7
         selectgroup(hObject, eventdata)
     elseif strcmp(c,'q') || double(c)==113
@@ -1955,6 +1966,15 @@ function mainkeypress(hObject, eventdata)
     elseif strcmp(c,'s') || double(c)==19
         saveLoadMesh_cbk(handles.savemesh,eventdata)
     elseif strcmp(c,'l') || double(c)==12
+        if ~isempty(eventdata.Modifier)
+            for i=1:length(eventdata.Modifier)
+                if strcmp(eventdata.Modifier{i},'control')
+                    displayLineageTree(handles.lineageTreeMenu,[])
+                    return
+                end
+            end
+        end
+        
         saveLoadMesh_cbk(handles.loadmesh,eventdata)
     elseif double(c)==13 && size(cellDrawPositions,1)>=2 % Enter - finish manually adding a cell
         saveundo;
@@ -1968,13 +1988,22 @@ function mainkeypress(hObject, eventdata)
         disp('Manual splitting regime terminated');
     elseif double(c)==26 % Control+Z - undo a manual operation
         doundo;
+    elseif strcmp(c,'j')
+        manual_cbk(handles.join,[])
+    elseif strcmp(c,'p')
+        manual_cbk(handles.split,[])
+    elseif strcmp(c,'r')
+        manual_cbk(handles.refine,[])
+    elseif strcmp(c,'d')
+        toggleButtonState(handles.drag)
+        manual_cbk(handles.drag,[])
     elseif strcmp(c,'f') || double(c)==102
         shiftfluomfn % set/change shiftfluo
-    elseif strcmp(c,'r') || double(c)==114
-        saveloadshiftfluo(2) % save shiftfluo
-    elseif strcmp(c,'t') || double(c)==116
-        saveloadshiftfluo(2) % save as shiftfluo
-    elseif strcmp(c,'y') || double(c)==121
+%     elseif strcmp(c,'r') || double(c)==114
+%         saveloadshiftfluo(2) % save shiftfluo
+%     elseif strcmp(c,'t') || double(c)==116
+%         saveloadshiftfluo(2) % save as shiftfluo
+%     elseif strcmp(c,'y') || double(c)==121
         saveloadshiftfluo(2) % load shiftfluo
     end
 end
@@ -2210,6 +2239,7 @@ function selectFrameAndCells(new_frame, cellIds)%#ok<INUSD>
 end
 function displayLineageTree(hObject, eventdata)
     drawLineageTree(cellList)
+    figure(handles.lineageTreeFigure)
 end
 function updateLineageTree()
     if isfield(handles,'lineageTreeFigure') && ishghandle(handles.lineageTreeFigure)
@@ -2221,7 +2251,8 @@ end
 function drawLineageTree(cellList)
     
     if isfield(handles,'lineageTreeFigure') && ishghandle(handles.lineageTreeFigure)
-        figure(handles.lineageTreeFigure)
+%         figure(handles.lineageTreeFigure)
+        set(0, 'CurrentFigure', handles.lineageTreeFigure)
         clf(handles.lineageTreeFigure,'reset');
     else
         handles.lineageTreeFigure = figure();
@@ -2492,6 +2523,10 @@ function descendants_cbk(hObject, eventdata)%#ok<INUSD>
     updateLineageTree();
     showCellData();
 
+end
+function toggleButtonState(hObject)
+    % alternates the value of a togglebutton
+    set(hObject,'Value',~get(hObject,'Value'))
 end
 
 %*****************************************************************************
