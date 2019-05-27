@@ -1,4 +1,4 @@
-function trimtreeplot(p,c,d)
+function [x,y,h,s] = trimtreelayout(p,c,d)
 % TRIMTREEPLOT A modified standard function TREEPLOT. Plots the
 %   leaves differently from TREEPLOT. They appear in their
 %   respective layer instead of the deepest layer so that the tree
@@ -25,7 +25,7 @@ function trimtreeplot(p,c,d)
 
 % RG use another treelayout 
 %[x,y,h]=treelayout(p);
-[x,y,h]=trimtreelayout(p);
+[x,y,h,s]=trimtreelayout(p);
 
 f = find(p~=0);
 pp = p(f);

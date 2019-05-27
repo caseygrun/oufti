@@ -133,7 +133,7 @@ handles.signalStat = uimenu(handles.tools,'Label','signal statistics');
                 uimenu(handles.tools,'Label','export cellList to csv','Callback','exportCellListFcn');
                 uimenu(handles.tools,'Label','import csv to cellList','Callback','importCsvFcn');
                 
-                uimenu(handles.tools,'Label','display lineage tree','Callback',@displayLineageTree);
+                handles.lineageTreeMenu = uimenu(handles.tools,'Label','display lineage tree','Callback',@displayLineageTree);
 
 %----------------------------------------------------------------------------------------
 
@@ -2205,8 +2205,27 @@ function selectFrameAndCells(new_frame, cellIds)%#ok<INUSD>
     displaySelectedCells();
     showCellData();
     updateslider();
+    updateLineageTree();
+    figure(handles.maingui)
 end
 function displayLineageTree(hObject, eventdata)
+    drawLineageTree(cellList)
+end
+function updateLineageTree()
+    if isfield(handles,'lineageTreeFigure') && ishghandle(handles.lineageTreeFigure)
+        f = gcf();
+        drawLineageTree(cellList)
+        figure(f)
+    end
+end
+function drawLineageTree(cellList)
+    
+    if isfield(handles,'lineageTreeFigure') && ishghandle(handles.lineageTreeFigure)
+        figure(handles.lineageTreeFigure)
+        clf(handles.lineageTreeFigure,'reset');
+    else
+        handles.lineageTreeFigure = figure();
+    end
     
     % find largest cellId in use
     numcells = max(cell2mat(cellList.cellId(~cellfun('isempty',cellList.cellId))));
@@ -2227,7 +2246,7 @@ function displayLineageTree(hObject, eventdata)
         meshinfo=cellList.meshData{cframe};
         
         % for each cell in frame
-        for cellnum=1:cellListN(cframe)
+        for cellnum=1:length(meshinfo)
             cellExists(cellIDs(cellnum)) = 1;
             
             birthframe(cellIDs(cellnum))=meshinfo{cellnum}.birthframe;
@@ -2237,27 +2256,49 @@ function displayLineageTree(hObject, eventdata)
         end
     end
     
-    nodes=zeros(1,numcells);
-    A=find(cellfun('isempty',ancestors)==0);
-    for i=1:length(A)
-        nodes(A(i))=max(ancestors{A(i)});
-    end
+    existingCellIds = find(cellExists);
+    existingCellAncestors = ancestors(existingCellIds);
+    existingCellBirthframe = birthframe(existingCellIds);
+    nodes=zeros(1,length(existingCellIds));
     
-    figure; axis off; hold on
-    trimtreeplot(nodes)
-    [x, y, h, s]=trimtreelayout(nodes);
-    
-    function cbk = get_click_cbk(cellId, birth_frame)
-        cbk = @(~,~) selectFrameAndCells(birth_frame, cellId);
+%     A=find(cellfun('isempty',existingCellAncestors)==0);
+%     for i=1:length(A)
+%         nodes(A(i))=max(existingCellAncestors{A(i)});
+%     end
+    for i = 1:length(existingCellIds)
+        if ~isempty(existingCellAncestors{i})
+            nodes(i) = find(existingCellIds == existingCellAncestors{i}(end));
+        end
     end
-    for i = 1 :numcells
-        p = text(x(i),y(i),num2str(i),'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
+
+
+    axis off; hold on
+    [x, y, h, s]=trimtreeplot(nodes)
+    %[x, y, h, s]=trimtreelayout(nodes);
+    
+%     function cbk = get_click_cbk(cellId, birth_frame)
+%         cbk = @(~,~) selectFrameAndCells(birth_frame, cellId);
+%     end
+
+    function click_cbk(hObject, ~)
+        cellData = get(hObject,'UserData');
+        selectFrameAndCells(cellData(1),cellData(2));
+    end
+    for i = 1:length(existingCellIds)
+        p = text(x(i),y(i),num2str(existingCellIds(i)),'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
         
-        cell_click_cbk = get_click_cbk(i,birthframe(i));
-        set(p,'ButtonDownFcn',cell_click_cbk,...
-           'PickableParts','all') %,'FaceColor','none')
+        set(p,'UserData', [existingCellBirthframe(i) existingCellIds(i)])
+        
+        set(p,'ButtonDownFcn',@click_cbk,...
+           'PickableParts','all','BackgroundColor','white')
+       
+       if ismember(existingCellIds(i), selectedList)
+           set(p,'EdgeColor','red','FontWeight','bold')
+       end
     end
     hold off
+    
+    refresh_button = uicontrol('String','Refresh','Callback',@displayLineageTree);
 end
 
 %*****************************************************************************
@@ -2271,6 +2312,7 @@ function selectFrame(hObject, eventdata)%#ok<INUSD>
     set(handles.currentframe,'String',[num2str(frame) ' of ' num2str(imsizes(end,3))]);
     displayCells();
     selectedList = selNewFrame(selectedList,prevframe,frame);
+    updateLineageTree()
     selDispList = [];
     displaySelectedCells();
     showCellData();
@@ -2446,6 +2488,8 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
     selectedList(1) = new_cellId;
     displaySelectedCells();
     displayCells();
+    displaySelectedCells();
+    updateLineageTree();
     showCellData();
 
 end
@@ -2660,9 +2704,10 @@ function manual_cbk(hObject, eventdata)%#ok<INUSD>
         displayCells();
     end
     for cell=selectedList, updateorientation(cell); end
-% % % displayCells();
-% % % displaySelectedCells();
-showCellData();
+    % % % displayCells();
+    % % % displaySelectedCells();
+    showCellData();
+    updateLineageTree();
 end
 function displayCellsForManualOperations(listOfCells,yesDraw)
     if ~isfield(handles,'himage'), disp('Cells display terminated: no image handle'); return; end
@@ -2814,6 +2859,7 @@ function doundo
         displayCells
         displaySelectedCells
         showCellData
+        updateLineageTree();
         disp('Meshes updated to the previous state')
     end
 end
