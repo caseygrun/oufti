@@ -2304,7 +2304,7 @@ function drawLineageTree(cellList)
 
 
     axis off; hold on
-    [x, y, h, s]=trimtreeplot(nodes)
+    [x, y, h, s]=trimtreeplot(nodes);
     %[x, y, h, s]=trimtreelayout(nodes);
     
 %     function cbk = get_click_cbk(cellId, birth_frame)
@@ -3251,8 +3251,8 @@ function makeCellFromPoints(askfornumber)
         while true
             dlg = inputdlg('Enter cell number','Adding cell dialog',1,{''});
             if isempty(dlg) || isempty(str2num(dlg{1})), disp('Adding cell terminated by the user'); return; end
-            cell = str2num(dlg{1});
-            if mod(cell,1)~=0 || cell<=0
+            celln = str2num(dlg{1});
+            if mod(celln,1)~=0 || celln<=0
                 disp('Cell number must be a positive integer');
             else
                 numallowed = true;
