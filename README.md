@@ -1,6 +1,24 @@
 This is a fork of the Oufti software package, to allow correction of lineage assignment errors and other improvements to the user interface.
 
-Requires MATLAB R2014b
+
+## Prerequisites
+
+Requires **MATLAB R2014b**. Will NOT work on later versions of MATLAB. Only the Mac version of oufti is supported in this fork at this time. 
+
+In addition, the following toolboxes are required:
+
+Bioinformatics Toolbox            Version 4.5        (R2014b)
+Computer Vision System Toolbox    Version 6.1        (R2014b)
+Curve Fitting Toolbox             Version 3.5        (R2014b)
+Image Processing Toolbox          Version 9.1        (R2014b)
+MATLAB Coder                      Version 2.7        (R2014b)
+MATLAB Compiler                   Version 5.2        (R2014b)
+Optimization Toolbox              Version 7.1        (R2014b)
+Parallel Computing Toolbox        Version 6.5        (R2014b)
+Statistics Toolbox                Version 9.1        (R2014b)
+
+
+## Install and run
 
 To run:
 
@@ -11,7 +29,6 @@ To run:
 
     in the MATLAB command window, or opening the script `source/gui/oufti.m` and clicking "Run"
 
-Only the Mac version of oufti is supported in this fork at this time. 
 
 ## New Features
 
@@ -22,7 +39,7 @@ Only the Mac version of oufti is supported in this fork at this time.
 - Keyboard shortcuts: 
     + A: toggle manually add cell mode
     + J: join two selected cells 
-    + S: split selected cell into two (hold shift and click to place the septum)
+    + P: split selected cell into two (hold shift and click to place the septum)
     + R: refine selected cell
 
 ## Undocumented oufti features
