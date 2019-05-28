@@ -33,7 +33,7 @@ function [ cellList ] = editCellId( old_cellId, new_cellId, frame, goToBirthFram
     where_new_cellId_exists = whereDoesCellIdExist(new_cellId, frame, newCellList);
     if where_new_cellId_exists ~= -1
         throw(MException('editCellId:newCellIdAlreadyExistsLater',...
-            sprintf('Cell %d already exists in a later, in frame %d',new_cellId, where_new_cellId_exists)))
+            sprintf('Cell %d already exists in frame %d',new_cellId, where_new_cellId_exists)))
     end
     
     % go back to the frame in which old_cellId was birthed and replace
