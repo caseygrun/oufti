@@ -192,7 +192,7 @@ handles.currentframe = uicontrol(handles.datapanel,'units','pixels','Position',[
 handles.currentcellsT = uicontrol(handles.datapanel,'units','pixels','Position',[1 114 75 15],'Style','text','String','Selected cell:','HorizontalAlignment','right','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 handles.currentcells = uicontrol(handles.datapanel,'units','pixels','Position',[80 114 85 15],'Style','edit','String','','callback',@cellId_cbk,'HorizontalAlignment','left','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 uicontrol(handles.datapanel,'units','pixels','Position',[1 100 75 15],'Style','text','String','Ancestors:','HorizontalAlignment','right','FontUnits','pixels','FontName','Helvetica','FontSize',10);
-handles.ancestors = uicontrol(handles.datapanel,'units','pixels','Position',[80 100 80 15],'Style','text','String','','HorizontalAlignment','left','FontUnits','pixels','FontName','Helvetica','FontSize',10);
+handles.ancestors = uicontrol(handles.datapanel,'units','pixels','Position',[80 100 80 15],'Style','edit','String','','callback',@ancestors_cbk,'HorizontalAlignment','left','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 uicontrol(handles.datapanel,'units','pixels','Position',[1 86 75 15],'Style','text','String','Descendants:','HorizontalAlignment','right','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 handles.descendants = uicontrol(handles.datapanel,'units','pixels','Position',[80 86 80 15],'Style','edit','String','','callback',@descendants_cbk,'HorizontalAlignment','left','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 uicontrol(handles.datapanel,'units','pixels','Position',[1 72 75 15],'Style','text','String','Divisions:','HorizontalAlignment','right','FontUnits','pixels','FontName','Helvetica','FontSize',10);
@@ -1845,6 +1845,7 @@ function showCellData
         set(handles.currentcells,'String','No cells selected');
         set(handles.currentcells,'Enable','off');
         set(handles.ancestors,'String','');
+        set(handles.ancestors,'Enable','off');
         set(handles.ancestors,'Tooltip','');
         set(handles.descendants,'String','');
         set(handles.divisions,'String','');
@@ -1860,7 +1861,9 @@ function showCellData
         set(handles.currentcells,'Enable','on');
         set(handles.currentcells,'String',[num2str(selectedList) ' of ' num2str(oufti_getFrameLength(frame, cellList))]);
         if isempty(celldata.ancestors), d='No ancestors'; else d=num2str(celldata.ancestors); end; set(handles.ancestors,'String',d); set(handles.ancestors,'Tooltip',d);
+        set(handles.ancestors,'Enable','on');
         if isempty(celldata.descendants), d='No descendants'; else d=num2str(celldata.descendants); end; set(handles.descendants,'String',d);
+        set(handles.descendants,'Enable','on');
         if isempty(celldata.divisions), d='No divisions'; else d=num2str(celldata.divisions); end; set(handles.divisions,'String',d); set(handles.divisions,'Tooltip',d);
         %set(handles.stage,'String',num2str(celldata.stage));
         if isfield(celldata,'area') && isfield(celldata,'length'), if isempty(celldata.area) || isempty(celldata.length), d=''; else d=num2str(celldata.area/celldata.length,'%.2f'); end; else d='No data'; end; set(handles.celldata.width,'String',d);
@@ -1871,6 +1874,8 @@ function showCellData
         set(handles.currentcellsT,'String','Selected cells:');
         set(handles.currentcells,'String',[num2str(length(selectedList)) ' cells']);
         set(handles.currentcells,'Enable','off');
+        set(handles.ancestors,'Enable','off');
+        set(handles.descendants,'Enable','off');
         set(handles.ancestors,'String','');
         set(handles.descendants,'String','');
         set(handles.divisions,'String','');
@@ -2278,8 +2283,14 @@ function drawLineageTree(cellList)
         
         % for each cell in frame
         for cellnum=1:length(meshinfo)
+            if(~isfield(meshinfo{cellnum},'birthframe') || ...
+               ~isfield(meshinfo{cellnum},'polarity') || ...
+               ~isfield(meshinfo{cellnum},'ancestors') || ...
+               ~isfield(meshinfo{cellnum},'descendants'))
+                fprintf('Warning, meshinfo is not populated for cell %d in frame %d',cellIDs(cellnum),cframe)
+                continue;
+            end
             cellExists(cellIDs(cellnum)) = 1;
-            
             birthframe(cellIDs(cellnum))=meshinfo{cellnum}.birthframe;
             polarity(cellIDs(cellnum))=meshinfo{cellnum}.polarity;
             ancestors{cellIDs(cellnum)}=meshinfo{cellnum}.ancestors;
@@ -2296,9 +2307,30 @@ function drawLineageTree(cellList)
 %     for i=1:length(A)
 %         nodes(A(i))=max(existingCellAncestors{A(i)});
 %     end
+    
+    broken_ancestors = [];
+
+    % for all cellIds that exist
     for i = 1:length(existingCellIds)
+        
+        % see if they report having any ancestors 
         if ~isempty(existingCellAncestors{i})
-            nodes(i) = find(existingCellIds == existingCellAncestors{i}(end));
+            % find the index within existingCellIds of the parent
+            f = find(existingCellIds == existingCellAncestors{i}(end));
+            
+            % but of course, the lineage tree might be corrupt the cell
+            % might report having an ancestor which doesn't exist. If so,
+            % display a warning and move on
+            if isempty(f)
+                as = existingCellAncestors{i};
+                fprintf(['Warning: corrupted lineage tree; cell %d reports '...
+                'its ancestry as %s, but cell %d does not exist.\n'],...
+                existingCellIds(i), num2str(as), as(end))
+            
+                broken_ancestors = [broken_ancestors existingCellIds(i)]
+            else
+                nodes(i) = f;
+            end
         end
     end
 
@@ -2329,6 +2361,9 @@ function drawLineageTree(cellList)
     end
     hold off
     
+    if ~isempty(broken_ancestors)
+        text(0,0,sprintf('These cells have broken ancestors; see Command Window for details: %s', num2str(broken_ancestors)),'Color','red')
+    end
     refresh_button = uicontrol('String','Refresh','Callback',@displayLineageTree);
 end
 
@@ -2442,6 +2477,56 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
     updateLineageTree();
     showCellData();
 
+end
+%*****************************************************************************
+function ancestors_cbk(hObject, eventdata)%#ok<INUSD>
+    listOfCells = [];
+    for ii = 1:length(selectedList)
+        listOfCells.erase(ii) = oufti_cellId2PositionInFrame(selectedList(ii),frame,cellList);
+    end
+    edit2p
+    if ~oufti_doesFrameExist(frame, cellList) || oufti_isFrameEmpty(frame, cellList)
+        disp('Ancestor assignment failed: no cells in this frame'); return
+    end
+
+    % make sure exactly 1 cell is selected
+    if length(selectedList)~=1, disp('Ancestor assignment failed: Exactly one cell must be selected'); return; end
+    cellId = selectedList(1); 
+
+    % get meshData about the currently selected cell (including
+    % importantly the current ancestors and descendants of that
+    % cell)
+    celldata = oufti_getCellStructure(cellId,frame, cellList);
+    old_ancestors = celldata.ancestors;
+    
+    
+    action = questdlg(sprintf(['Warning: This function will ONLY change the ancestors '...
+    'property of this cell (%d) and its descendants on frame %d and later '...
+    'frames; it will NOT change the descendants property if this cell was '...
+    'birthed by a real division event. Only use this to fix broken lineage '...
+    'trees, otherwise edit descendants or rename cells instead!'],...
+    cellId,frame),'Warning','Continue','Cancel','Cancel');
+    if(strcmp(action,'Cancel'))
+        return
+    end
+
+    % read the new descendant list from the text box, parse to numbers
+    d = get(hObject,'String');
+    if (strcmp(d,'No ancestors') || isempty(d) || strcmp(d,' '))
+        new_ancestors = [];
+    else
+        new_ancestors = str2double(regexp(d ,'\d*','match'));
+    end
+    disp(old_ancestors)
+    disp(new_ancestors)
+    
+    cellList = replaceAncestry(cellId, frame, new_ancestors, cellList);
+    saveundo;
+    
+    displayCells();
+    displaySelectedCells();
+    updateLineageTree();
+    showCellData();
 end
 %*****************************************************************************
 function descendants_cbk(hObject, eventdata)%#ok<INUSD>
