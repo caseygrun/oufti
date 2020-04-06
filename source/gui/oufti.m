@@ -2409,7 +2409,7 @@ function cellId_cbk(hObject, eventdata)%#ok<INUSD>
     new_cellId_str = get(hObject,'String');
     
     % if the new cellId is blank, assign a new number
-    if strcmp(new_cellId_str,'')
+    if isempty(new_cellId_str)
        new_cellId = -1;
     else
         new_cellId = str2num(new_cellId_str);
@@ -3052,7 +3052,7 @@ else
         %location becomed the new place of the dragged cell mesh.
         if ishandle(handles.drag) && get(handles.drag,'Value')
            cellsToDragHistory = [cellsToDragHistory selectedList];
-           if strcmp(get(hObject,'SelectionType'),'normal')
+               if strcmp(get(hObject,'SelectionType'),'normal')
               if ishandle(ax),cp = get(ax,'CurrentPoint');end
               if ishandle(handles.impanel),impanelStruct = struct(get(handles.impanel));end
               ax2 = get(impanelStruct.Children,'children');
@@ -5112,6 +5112,7 @@ else
         pcCell = [];
         cCell = [];
         prevStruct = oufti_getCellStructure(lst(celln), frame, tempCellList1);
+        if(isempty(prevStruct)) continue; end
         roiBox = prevStruct.box;
         roiImg = imcrop(imge,roiBox);
         roiBox(3:4) = [size(roiImg,2) size(roiImg,1)]-1;

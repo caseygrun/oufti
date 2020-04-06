@@ -105,7 +105,7 @@ assert(all(cellData_54.ancestors == [49 51]))
 clear
 load('./tests/data/PA14 Pt-sfGFP MinS_NTA s1 col1.mat','cellList') %,'cellListN','paramString','objectParams','spotParams');
 
-where_exists = whereDoesCellIdExist(50, 1, cellList)
+where_exists = whereDoesCellIdExist(50, 1, cellList);
 assert(where_exists == 7)
 
 %% editDescendants( cellId, frame, newDescendants, forceOrphan, cellList )
