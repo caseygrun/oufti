@@ -83,8 +83,11 @@ handles.textMode = 0;
 handles.maingui = figure('pos',[100 100 800 800],'WindowButtonMotionFcn',@mousemove,'windowButtonUpFcn',...
                          @dragbutonup,'windowButtonDownFcn',@selectclick,'KeyPressFcn',@mainkeypress,...
                          'WindowKeyPressFcn',@wndmainkeypress,'WindowKeyReleaseFcn',@wndmainkeyrelease,...
-                         'CloseRequestFcn',@mainguiclosereq,'Toolbar','none','Menubar','none','Name',...
-                         num2str(versionNumber),'Visible','off','NumberTitle','off','IntegerHandle','off','ResizeFcn',@resizefcn,'uicontextmenu',[],'DockControls','off');
+                         'CloseRequestFcn',@mainguiclosereq,...
+                         'Toolbar','none','Menubar','none',...
+                         'Name',num2str(versionNumber),'Visible','off','NumberTitle','off','IntegerHandle','off',...
+                         'WindowScrollWheelFcn',@mainscrollwheel,...
+                         'ResizeFcn',@resizefcn,'uicontextmenu',[],'DockControls','off');
 %----------------------------------------------------------------------------------------
 hFig = handle(handles.maingui);
 %menus for Oufti, spotFinder or alignment functions
@@ -1925,10 +1928,29 @@ function modeSelection(hObject,eventdata)
     elseif strcmpi(hObject.SelectedObject.String,'Reuse meshes')
         set(handles.saveEachFrame,'Enable','off');
     end
-    
-    
-    
+        
 end
+
+function mainscrollwheel(hObject, eventdata)
+%     elseif hObject == handles.hfig
+%         if eventdata.VerticalScrollCount>0
+%             magnification = magnification*1.5;
+%         else
+%             magnification = max(1,magnification/1.5);
+%         end
+%     end
+
+    % scroll up
+    if eventdata.VerticalScrollCount>0
+        set(handles.imslider,'value',min(imsizes(end,3),get(handles.imslider,'value') + eventdata.VerticalScrollCount ));
+        imslider(handles.imslider, eventdata)
+    % scroll down - moves to the next frame
+    else
+        set(handles.imslider,'value',max(1,get(handles.imslider,'value') + eventdata.VerticalScrollCount ));
+        imslider(handles.imslider, eventdata)
+    end
+end
+
 function mainkeypress(hObject, eventdata)
     % key press callback
     if hObject==handles.hfig
