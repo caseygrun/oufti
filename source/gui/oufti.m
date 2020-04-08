@@ -2928,19 +2928,16 @@ else
      if ~extend && ~dblclick, isShiftPressed = 0; end
      
      % determine the point clicked
-     try
-         ps = get(ax,'CurrentPoint');
-         if ~isempty(ps)
-            if ps(1,1)<0 || ps(1,1)>imsizes(end,2) || ps(1,2)<0 || ps(1,2)>imsizes(end,1), return; end;
-     
-             warning('off','MATLAB:warn_r14_stucture_assignment')
-             pos.x = ps(1,1);
-             pos.y = ps(1,2);
-             %warning on
-             % perform the actions
-         end
-     catch
+     ps = get(ax,'CurrentPoint');
+     if ~isempty(ps)
+        if ps(1,1)<0 || ps(1,1)>imsizes(end,2) || ps(1,2)<0 || ps(1,2)>imsizes(end,1), return; end;
+
+%          warning('off','MATLAB:warn_r14_stucture_assignment')
+         pos = struct('x',ps(1,1), 'y',ps(1,2));
+         %warning on
+         % perform the actions
      end
+     
      flag = true;
      if oufti_doesFrameExist(frame, cellList) && ~oufti_isFrameEmpty(frame, cellList) && ~get(handles.addcell, 'Value')
     
@@ -3508,9 +3505,10 @@ function pos = getmousepos
 % % %     ax = himageStruct.Parent;
 % % %     ax = get(handles.himage,'parent');
     ps = get(himageStruct.Parent,'CurrentPoint');
-    pos.x = ps(1,1);
-    pos.y = ps(1,2);
-    if ps(1,1)<0 || ps(1,1)>imsizes(end,2) || ps(1,2)<0 || ps(1,2)>imsizes(end,1), pos = []; end;
+    pos = struct('x',ps(1,1), 'y',ps(1,2));
+%     pos.x = ps(1,1);
+%     pos.y = ps(1,2);
+    if ps(1,1)<0 || ps(1,1)>imsizes(end,2) || ps(1,2)<0 || ps(1,2)>imsizes(end,1), pos = []; end
 end
 
 function mousemove(hObject, eventdata)%#ok<INUSD>
@@ -4272,7 +4270,7 @@ function run_cbk(hObject, eventdata)%#ok<INUSD>
         warndlg('Press "File" button to select directory for analysis','!! Warning !!')
         return;
     end
-    warning('off','MATLAB:warn_r14_stucture_assignment')
+%     warning('off','MATLAB:warn_r14_stucture_assignment')
     global p filenametmp 
     if imsizes(end,1)==0, return; end
     edit2p();
