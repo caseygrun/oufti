@@ -159,7 +159,7 @@ handles.helpbtn = uicontrol(handles.loadpanel,'units','pixels','Position',[1 2 6
                     'ForegroundColor',[0.8 0 0],'callback',@help_cbk,'FontUnits','pixels','FontSize',13);
 handles.loadphase = uicontrol(handles.loadpanel,'units','pixels','Position',[78 2 80 25],...
                               'String','Load phase','callback',@loadstack,'FontUnits','pixels',...
-                              'FontName','Helvetica','FontSize',10,'KeyPressFcn',@mainkeyprese);
+                              'FontName','Helvetica','FontSize',10,'KeyPressFcn',@mainkeypress);
 handles.loads1 = uicontrol(handles.loadpanel,'units','pixels','Position',[163 2 80 25],'String','Load signal 1','callback',@loadstack,'FontUnits','pixels','FontName','Helvetica','FontSize',10,'KeyPressFcn',@mainkeypress);
 handles.loads2 = uicontrol(handles.loadpanel,'units','pixels','Position',[247 2 80 25],'String','Load signal 2','callback',@loadstack,'FontUnits','pixels','FontName','Helvetica','FontSize',10,'KeyPressFcn',@mainkeypress);
 handles.loadcheck = uicontrol(handles.loadpanel,'units','pixels','pos',[331 2 60 25],'style','checkbox','String','stack','FontUnits','pixels','FontName','Helvetica','FontSize',10,'Value',1,'KeyPressFcn',@mainkeypress);
