@@ -348,8 +348,8 @@ handles.aligntest   = uicontrol(handles.testpanel,'units','pixels','Position',[1
 screenSize = get(0,'ScreenSize');
 %-----------------------------------------
 %
-if screenSize(4)<=840, pos = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos(1) pos(2)-50 pos(3) 700]); end
-if screenSize(4)<=740, pos = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos(1) pos(2)-100 pos(3) 600]); end
+if screenSize(4)<=840, pos = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos(1) pos(2)-50 pos(3) 700]); delete(pos); end
+if screenSize(4)<=740, pos = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos(1) pos(2)-100 pos(3) 600]); delete(pos); end
 handles.hfig = figure('Toolbar','none','Menubar','none','Name','Zoomed image','NumberTitle','off','IntegerHandle','off',...
                 'Visible','off','CloseRequestFcn',@hfigclosereq,'windowButtonDownFcn',@selectclick,...
                 'windowButtonUpFcn',@dragbutonup,'WindowButtonMotionFcn',@dragmouse,...
@@ -2701,7 +2701,10 @@ function manual_cbk(hObject, eventdata)%#ok<INUSD>
         % actual addition is done in makeCellFromPoints function
         
     elseif hObject==handles.drag && ~get(handles.drag,'value')
-            if matlabpool('size') > 0, matlabpool close;end
+            % if matlabpool('size') > 0, matlabpool close;end
+            % poolobj = gcp('nocreate');
+            % if poolobj, delete(poolobj); end
+            delete(gcp('nocreate'))
     elseif hObject==handles.refineAll && get(handles.refineAll,'value')
         refineAllParallel(1:oufti_getLengthOfCellList(cellList),[]);
         displayCells();

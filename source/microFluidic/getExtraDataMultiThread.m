@@ -25,7 +25,8 @@ else
     sched = parcluster(parallel.defaultClusterProfile); 
     numThreads = sched.NumWorkers;
 end
-if matlabpool('size') == 0, matlabpool open;end
+% if matlabpool('size') == 0, matlabpool open;end
+% pool = gcp()
 
 disp('--------- Adding extra fields to cellList ---------')
 
@@ -75,7 +76,8 @@ if numFrames > 500
         end
         counter = counter + 1;
     end
-    if matlabpool('size') > 0, matlabpool close; end
+    % if matlabpool('size') > 0, matlabpool close; end
+    delete(gcp('nocreate'))
     
     cellList.cellId = CL.cellId; 
 else   
@@ -104,14 +106,16 @@ else
         cellList = meshData;
     end
 
-    if matlabpool('size') > 0, matlabpool close; end
+    % if matlabpool('size') > 0, matlabpool close; end
+    delete(gcp('nocreate'))
 
 end
 
 catch err
     disp(err.message);
      disp(['Error in ' err.stack(1).file ' in line ' num2str(err.stack(1).line)]);
-    if matlabpool('size') > 0, matlabpool close; end
+    % if matlabpool('size') > 0, matlabpool close; end
+    delete(gcp('nocreate'))
 end
 end
             
