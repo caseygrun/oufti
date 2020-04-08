@@ -2651,6 +2651,7 @@ function manual_cbk(hObject, eventdata)%#ok<INUSD>
             %displayCells();
             displaySelectedCells();
             showCellData();
+            updateLineageTree();
             return;
         end
     elseif hObject==handles.split
@@ -2830,6 +2831,7 @@ function forcesplitcellonclick(frame,celln,x,y)
         updateorientation(lst(2))
         displaySelectedCells
         showCellData
+        updateLineageTree();
     else
         disp('Splitting failed');
     end
