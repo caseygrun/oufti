@@ -169,6 +169,7 @@ global handles handles1
 screenSize = get(0,'ScreenSize');
 pos = get(handles.maingui,'position');
 pos = [max(pos(1),1) max(1,min(pos(2),screenSize(4)-20-max(pos(4),600))) max(pos(3:4),[1000 600])];
-set(handles1.objectDetectionPanel,'pos',[pos(3)-1000+725 pos(4)-840+485 272 290]);
-
+if ishandle(handles1.objectDetectionPanel)
+    set(handles1.objectDetectionPanel,'pos',[pos(3)-1000+725 pos(4)-840+485 272 290]);
+end
 end
