@@ -3466,7 +3466,8 @@ function dragbutonup(hObject, eventdata)%#ok<INUSD>
                 selectedList = [];
             end
             numCells = oufti_getFrameLength(frame, cellList);
-            for celln = 1:numCells
+            [~, ids] = oufti_getFrame(frame, cellList);
+            for celln=ids
                 if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
                     cell = oufti_getCellStructure(celln,frame,cellList);
                     box = cell.box;
