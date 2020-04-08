@@ -24,8 +24,13 @@ if length(CL.meshData) < frame
    return;
 end
     
-cellId = CL.cellId{frame} == cellId;
-%pos = CL.cellId{frame}(cellId);
-CL.meshData{frame}(cellId)       = [];
-CL.cellId{frame}(cellId)         = [];
+cellIndex = CL.cellId{frame} == cellId;
+
+% if cellId is not found in this frame, then cellIndex = []; without this
+% check the following lines error with "Deletion requires an existing 
+% variable." becuse assignment to [] constitutes deleting a variable?
+if ~isempty(cellIndex)
+    CL.meshData{frame}(cellIndex)       = [];
+    CL.cellId{frame}(cellIndex)         = [];
+end
 end
