@@ -76,12 +76,15 @@ bformats = checkbformats(1);
 %-------------------------------------------------------------------------------------
 
 % define/redefine globals
-global hFig rmask cellList cellListN selectedList imsizes handles imageFolders imageLimits logcheckw regionSelectionRect shiftframes shiftfluo %#ok<REDEF>
+global hFig rmask cellList cellListN selectedList imsizes handles imageFolders imageLimits logcheckw regionSelectionRect shiftframes shiftfluo cellsToDragHistory%#ok<REDEF>
 
 %% GUI
 handles.textMode = 0;
-handles.maingui = figure('pos',[100 100 800 800],'WindowButtonMotionFcn',@mousemove,'windowButtonUpFcn',...
-                         @dragbutonup,'windowButtonDownFcn',@selectclick,'KeyPressFcn',@mainkeypress,...
+handles.maingui = figure('pos',[100 100 800 800],...
+                         'WindowButtonMotionFcn',@mousemove,...
+                         'windowButtonUpFcn',@mouseup,...
+                         'windowButtonDownFcn',@mousedown,...
+                         'KeyPressFcn',@mainkeypress,...
                          'WindowKeyPressFcn',@wndmainkeypress,'WindowKeyReleaseFcn',@wndmainkeyrelease,...
                          'CloseRequestFcn',@mainguiclosereq,...
                          'Toolbar','none','Menubar','none',...
@@ -331,7 +334,7 @@ handles.addcell         = uicontrol(handles.specialpanel,'units','pixels','Posit
 handles.refine          = uicontrol(handles.specialpanel,'units','pixels','Position',[5 5 45 20],'Style','pushbutton','String','<html><u>R</u>efine','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring','Refine the cell outline under the current parameters','FontUnits','pixels','FontName','Helvetica','FontSize',10);
 handles.refineAll       = uicontrol(handles.specialpanel,'units','pixels','Position',[55 5 55 20],'Style','pushbutton','String','Refine All','callback',@manual_cbk,'KeyPressFcn',@mainkeypress,'Tooltipstring',...
                             'Refine all the cells that are selected or just went under drag mode using cell outline under the current parameters','FontUnits','pixels','FontName','Helvetica','FontSize',10);
-handles.drag            = uicontrol(handles.specialpanel,'units','pixels','Position',[114 5 45 20],'Style','togglebutton','String','<html><u>D</u>rag','FontUnits','pixels','FontName','Helvetica','FontSize',10,'callback',@manual_cbk,'KeyPressFcn',@selectclick);
+handles.drag            = uicontrol(handles.specialpanel,'units','pixels','Position',[114 5 45 20],'Style','togglebutton','String','<html><u>D</u>rag','FontUnits','pixels','FontName','Helvetica','FontSize',10,'callback',@manual_cbk,'KeyPressFcn',@mousedown);
 
 
 % Parameters
@@ -354,8 +357,10 @@ screenSize = get(0,'ScreenSize');
 if screenSize(4)<=840, pos = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos(1) pos(2)-50 pos(3) 700]); delete(pos); end
 if screenSize(4)<=740, pos = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos(1) pos(2)-100 pos(3) 600]); delete(pos); end
 handles.hfig = figure('Toolbar','none','Menubar','none','Name','Zoomed image','NumberTitle','off','IntegerHandle','off',...
-                'Visible','off','CloseRequestFcn',@hfigclosereq,'windowButtonDownFcn',@selectclick,...
-                'windowButtonUpFcn',@dragbutonup,'WindowButtonMotionFcn',@dragmouse,...
+                'Visible','off','CloseRequestFcn',@hfigclosereq,'windowButtonDownFcn',@mousedown,...
+                'windowButtonUpFcn',@mouseup,...
+                'WindowButtonMotionFcn',@mousemove,...
+                ...%'WindowButtonMotionFcn',@dragmouse,...
                 'WindowScrollWheelFcn',@zoominout,'KeyPressFcn',@mainkeypress,'uicontextmenu',[]);
 
 set(handles.maingui,'Color',get(handles.imslider,'BackgroundColor'));
@@ -387,6 +392,7 @@ handles.cells = {};
 dragMode = false;
 groupSelectionMode = false;
 regionSelectionMode = false;
+cellsToDragHistory = [];
 cellDrawPositions = [];
 cellDrawObjects = [];
 groupSelectionPosition = [];
@@ -2373,15 +2379,15 @@ function drawLineageTree(cellList)
         selectFrameAndCells(cellData(1),cellData(2));
     end
     for i = 1:length(existingCellIds)
-        p = text(x(i),y(i),num2str(existingCellIds(i)),'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
+        t = text(x(i),y(i),num2str(existingCellIds(i)),'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
         
-        set(p,'UserData', [existingCellBirthframe(i) existingCellIds(i)])
+        set(t,'UserData', [existingCellBirthframe(i) existingCellIds(i)])
         
-        set(p,'ButtonDownFcn',@click_cbk,...
+        set(t,'ButtonDownFcn',@click_cbk,...
            'PickableParts','all','BackgroundColor','white')
        
        if ismember(existingCellIds(i), selectedList)
-           set(p,'EdgeColor','red','FontWeight','bold')
+           set(t,'EdgeColor','red','FontWeight','bold')
        end
     end
     hold off
@@ -2643,7 +2649,7 @@ end
 function manual_cbk(hObject, eventdata)%#ok<INUSD>
     % callback for manual operations (joining, splitting, refining, adding)
 %     selectedList = sort(selectedList);
-    global cellsToDragHistory 
+%     global cellsToDragHistory 
     
     listOfCells = [];
     for ii = 1:length(selectedList)
@@ -2738,6 +2744,7 @@ function manual_cbk(hObject, eventdata)%#ok<INUSD>
     showCellData();
     updateLineageTree();
 end
+
 function displayCellsForManualOperations(listOfCells,yesDraw)
     if ~isfield(handles,'himage'), disp('Cells display terminated: no image handle'); return; end
     if ~ishandle(handles.himage), disp('Cells display terminated: wrong image handle'); return; end
@@ -2827,8 +2834,8 @@ function displayCellsForManualOperations(listOfCells,yesDraw)
         xlim(ax(2),[0 imsizes(end,2)]);
         ylim(ax(2),[0 imsizes(end,1)]);
     end
-
 end
+
 function forcesplitcellonclick(frame,celln,x,y)
     listOfCells = []; 
     listOfCells.erase = oufti_cellId2PositionInFrame(celln,frame,cellList);
@@ -2859,383 +2866,6 @@ function forcesplitcellonclick(frame,celln,x,y)
     end
 end
 
-function saveundo
-    if isfield(cellList,'meshData')
-        if length(cellList.meshData)<frame, return; end
-        undo.cellListFrame = cellList.meshData{frame};
-        undo.cellId        = cellList.cellId{frame};
-    else
-        if length(cellList)<frame, return; end
-        undo.cellListFrame = cellList{frame}; 
-    end
-    undo.selectedList = selectedList;
-    undo.frame = frame;
-end
-
-function doundo
-    if isempty(undo) || frame>imsizes(end,3)
-        disp('Nothing to undo: no changes made')
-    else
-        if frame~=undo.frame
-            frame = undo.frame;
-            set(handles.imslider,'value',frame);
-            imslider(handles.imslider, eventdata)
-        end
-        cellList.meshData{undo.frame} = undo.cellListFrame;
-        cellList.cellId{undo.frame}   = undo.cellId;
-        selectedList = undo.selectedList;
-        selDispList = [];
-        undo = [];
-        displayCells
-        displaySelectedCells
-        showCellData
-        updateLineageTree();
-        disp('Meshes updated to the previous state')
-    end
-end
-
-function polarity_cbk(hObject, eventdata)%#ok<INUSD>
-    if hObject==handles.removepolarity && get(handles.removepolarity,'Value')
-        set(handles.setpolarity,'Value',0)
-    elseif hObject==handles.setpolarity && get(handles.setpolarity,'Value')
-        set(handles.removepolarity,'Value',0)
-    end
-end
-
-function selectclick(hObject, eventdata)%#ok<INUSD>
-global p handles1 imageHandle spotlist cellsToDragHistory
-     
-if ~isempty(handles1) && isfield(handles1,'spotFinderPanel') && strcmp(get(handles1.spotFinderPanel,'Visible'),'on') 
-   if isempty(imageHandle) || ~ishandle(imageHandle.fig) || isempty(spotlist), return; end
-      ps = get(imageHandle.ax,'CurrentPoint');
-      xlimit = get(imageHandle.ax,'XLim');
-      ylimit = get(imageHandle.ax,'YLim');
-      x = ps(1,1);
-      y = ps(1,2);
-      if x<xlimit(1) || x>xlimit(2) || y<ylimit(1) || y>ylimit(2), return; end
-      dst = (y-spotlist(:,8)).^2+(x-spotlist(:,9)).^2;
-      [mindst,minind] = min(dst);
-      if mindst>mean(xlimit(2)-xlimit(1),ylimit(2)-ylimit(1))^2/10, return; end
-      lst(minind) = ~lst(minind);
-      handles1.spotList{handles1.frame}{handles1.cell}.lst(minind) = lst(minind);
-      if lst(minind)
-         set(imageHandle.spots(minind),'Color',[1 0.1 0]);
-         disp('Selected spot:')
-      else
-         set(imageHandle.spots(minind),'Color',[0 0.8 0]);
-         disp('Unselected spot:')
-      end
-    spotlist = handles1.spotList{handles1.frame}{handles1.cell}.spotlist;
-    disp([' background: ' num2str(spotlist(minind,1))])
-    disp([' squared width: ' num2str(spotlist(minind,2))])
-    disp([' height: ' num2str(spotlist(minind,3))])
-    disp([' relative squared error: ' num2str(spotlist(minind,4))])
-    disp([' perimeter variance: ' num2str(spotlist(minind,5))])
-    disp([' filtered/unfiltered ratio: ' num2str(spotlist(minind,6))])
-else
-     % determine whether Shift/Control/Alt has been pressed
-     if hObject==handles.maingui
-        ax = get(get(handles.impanel,'children'),'children');
-        if iscell(ax), ax = ax{1}; end;
-        extend = strcmpi(hFig.SelectionType,'extend');
-        control = strcmpi(hFig.SelectionType,'alt');
-        dblclick = strcmpi(hFig.SelectionType,'open');
-     else
-        if ~ishandle(handles.himage), return; end
-        ax = get(handles.himage,'parent');
-        extend = strcmpi(get(handles.hfig,'SelectionType'),'extend');
-        control = strcmpi(get(handles.hfig,'SelectionType'),'alt');
-        dblclick = strcmpi(get(handles.hfig,'SelectionType'),'open');
-     end
-     
-     % update isShiftPressed
-     if ~extend && ~dblclick, isShiftPressed = 0; end
-     
-     % determine the point clicked
-     ps = get(ax,'CurrentPoint');
-     if ~isempty(ps)
-        if ps(1,1)<0 || ps(1,1)>imsizes(end,2) || ps(1,2)<0 || ps(1,2)>imsizes(end,1), return; end;
-
-%          warning('off','MATLAB:warn_r14_stucture_assignment')
-         pos = struct('x',ps(1,1), 'y',ps(1,2));
-         %warning on
-         % perform the actions
-     end
-     
-     flag = true;
-     if oufti_doesFrameExist(frame, cellList) && ~oufti_isFrameEmpty(frame, cellList) && ~get(handles.addcell, 'Value')
-    
-         if ~extend && ~isempty(selectedList)
-            selectedList = [];
-        end
-        
-        if ~control
-            [~, ids] = oufti_getFrame(frame, cellList);
-            for celln=ids
-                cell = oufti_getCellStructure(celln,frame,cellList);
-                if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
-                    try
-                   box = cell.box;
-                    catch
-                        return;
-                    end
-                    try
-                    if inpolygon(pos.x,pos.y,[box(1) box(1) box(1)+box(3) box(1)+box(3)],[box(2) box(2)+box(4) box(2)+box(4) box(2)])
-                        mesh = cell.mesh;
-                        if inpolygon(pos.x,pos.y,[mesh(:,1);flipud(mesh(:,3))],[mesh(:,2);flipud(mesh(:,4))])
-                            if get(handles.setpolarity,'Value') && ~splitSelectionMode % selecting stalk
-                                flag = false;
-                                mn = ceil(size(mesh,1)/2);
-                                if inpolygon(pos.x,pos.y,[mesh(mn:end,1);flipud(mesh(mn:end,3))],[mesh(mn:end,2);flipud(mesh(mn:end,4))])
-                                    if ~isfield(cell,'timelapse') || cell.timelapse || get(handles.runmode1,'value') % TODO correct
-%                                         cellList.meshData = reorientall(cellList.meshData,celln,true);
-                                          cellList = reorientall(cellList,celln,true);
-                                    else
-% %                                          cellList.meshData{frame}{cell} = reorient(cellList.meshData{frame}{cell});
-% %                                          cellList.meshData{frame}{cell}.polarity = 1;
-										cellList = oufti_addCell(celln,frame,reorient(cell),cellList);
-										cellList = oufti_addFieldToCellList(celln,frame,'polarity',1,cellList);
-                                    end
-                                    updateorientation(celln)
-                                    disp(['The orientation of cell ' num2str(celln) ' has been updated'])
-                                else
-                                    if ~isfield(cell,'timelapse') || cell.timelapse || get(handles.runmode1,'value')
-%                                         cellList.meshData = reorientall(cellList.meshData,cell,false);
-                                        cellList = reorientall(cellList,celln,false);
-                                    else
-%                                         cellList.meshData{frame}{cell}.polarity = 1;
-										cellList = oufti_addFieldToCellList(celln,frame,'polarity',1,cellList);
-                                    end
-                                    updateorientation(celln)
-                                    disp(['The orientation of cell ' num2str(celln) ' has been set'])
-                                end
-                            elseif get(handles.removepolarity,'Value') && ~splitSelectionMode % removing stalk
-                                flag = false;
-                                if ~isfield(cell,'timelapse') || cell.timelapse
-%                                     cellList.meshData = removeorientationall(cellList.meshData,cell);
-                                      cellList = removeorientationall(cellList,celln);
-                                else
-%                                     cellList.meshData{frame}{cell}.polarity = 0;
-									cellList = oufti_addFieldToCellList(celln,frame,'polarity',0,cellList);
-                                end
-                                updateorientation(celln)
-                                disp(['The orientation of cell ' num2str(celln) ' has been removed'])
-                            elseif splitSelectionMode % selecting manual split position
-                                splitSelectionMode = false;
-                                forcesplitcellonclick(frame,celln,pos.x,pos.y)
-                                return
-                            else % selecting cell
-                                flag = false;
-                                if isempty(find((selectedList-celln)==0,1))
-                                    % Adding a cell to selectedList
-                                    selectedList = [selectedList, celln];%#ok<AGROW>
-                                    if isShiftPressed == 0
-                                        break;
-                                    end
-                                else
-                                    % Removing a cell from selectedList
-                                    [~,k] = find((selectedList-celln)==0,1);
-                                    selectedList = selectedList([1:k-1 k+1:end]);
-                                end
-                            end
-                        end
-                    end
-                    catch err
-                        return;
-                    end
-                elseif isfield(cell,'model') && length(cell.model)>1 && ...
-                        ~get(handles.setpolarity,'Value') && ~get(handles.removepolarity,'Value') % Using 'contour' instead of 'mesh'
-                    box = cell.box;
-                    if inpolygon(pos.x,pos.y,[box(1) box(1) box(1)+box(3) box(1)+box(3)],[box(2) box(2)+box(4) box(2)+box(4) box(2)])
-                        contour = cell.model;
-                        if inpolygon(pos.x,pos.y,contour(:,1),contour(:,2))
-                            flag = false;
-                            if p.algorithm == 1 && splitSelectionMode
-                               disp('Cell with no mesh can not be splitted at this moment, deleted the cell and add the two cells manually');
-                                return;
-                            end
-                            if isempty(find((selectedList-celln)==0,1))
-                                selectedList = [selectedList, celln]; %#ok<AGROW>% Adding a cell to selectedList
-                            else
-                                [~,k] = find((selectedList-celln)==0,1);
-                                selectedList = selectedList([1:k-1 k+1:end]); % Removing a cell from selectedList
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        displaySelectedCells();
-        showCellData();
-        %------------------------------------------------------------------
-        %this statement checks if a drag selection is enabled upon which it
-        %calls wbmcb and wbucb functions which perform drag operation of
-        %cell mesh.  The dragging of cell meshes is perfromed by clicking
-        %on a particular mesh and dragging to a desired position with the
-        %left key of a mouse.  Once the mouse button is released then that
-        %location becomed the new place of the dragged cell mesh.
-        if ishandle(handles.drag) && get(handles.drag,'Value')
-           cellsToDragHistory = [cellsToDragHistory selectedList];
-               if strcmp(get(hObject,'SelectionType'),'normal')
-              if ishandle(ax),cp = get(ax,'CurrentPoint');end
-              if ishandle(handles.impanel),impanelStruct = struct(get(handles.impanel));end
-              ax2 = get(impanelStruct.Children,'children');
-              if iscell(ax2), ax2 = ax2{1}; end;
-           
-              pointHistoryX = cp(1,1);
-              pointHistoryY = cp(1,2);
-              set(hObject,'WindowButtonMotionFcn',@wbmcb)
-              set(hObject,'WindowButtonUpFcn',@wbucb)
-             
-           end
-        elseif ishandle(handles.drag) && ~get(handles.drag,'Value')
-            cellsToDragHistory = [];
-             
-        else
-            cellsToDragHistory = [];
-        end
-        %------------------------------------------------------------------
-     end
-     
-     % terminate splitting regime if no cell has been selected
-     if splitSelectionMode
-         splitSelectionMode = false;
-         disp('Manual splitting regime terminated');
-     end
-     
-     % adding cells
-     if get(handles.addcell,'Value') && ~dblclick && ~control && max(imsizes(1:3,1))>0
-        if isempty(cellDrawPositions)
-            edit2p;
-            if ~isfield(p,'algorithm'), disp('Parameters not loaded or "algorithm" field missing'); return; end
-            if ~ismember(p.algorithm,[1 4])
-                disp('Adding cells is only inplemented for algorithms 1 and 4')
-                return
-            end
-        end
-        % adding next cell drawing point for manually adding cell
-        flag = false;
-        ax = get(get(handles.impanel,'children'),'children');
-        ah = ~ishandle(ax);
-        if ah(1) && ~iscell(ax), disp('Could not add point: cannot find axes'); return; end
-        if iscell(ax), ax = ax{1}; end;
-        ax(2) = get(handles.himage,'parent');
-        cellDrawPositions = [cellDrawPositions;ps(1,1:2)];
-        if ishandle(cellDrawObjects), delete(cellDrawObjects); end
-        cellDrawObjects = [];
-        for k=1:2
-            set(ax(k),'NextPlot','add');
-            cellDrawObjects = [cellDrawObjects plot(ax(k),cellDrawPositions(:,1),cellDrawPositions(:,2),'.-r')];%#ok<AGROW>
-        end
-        return
-    end
-    
-    % finishing manually adding cell: adding last point
-    if get(handles.addcell,'Value') && size(cellDrawPositions,2)>1 && dblclick && ~control
-        flag = false;
-        saveundo;
-        makeCellFromPoints(isShiftPressed);
-        return
-    end
-    
-    % start selecting a group of cells
-    if flag && (control || extend)
-        groupSelectionMode = true;
-        groupSelectionPosition = ps(1,1:2);
-    end
-    
-    % start moving the field
-    if flag && hObject==handles.hfig && ~extend && ~control
-        dragMode = true;
-        dragPosition = getmousepos;
-    end
-    
-    if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end
-    groupSelectionRectH = [];
-    regionSelectionRect = [];
-end
-
-
-%##########################################################################
-function wbmcb(hObject,eventData) %#ok<INUSD>
-%--------------------------------------------------------------------------
-%--------------------------------------------------------------------------
-%function wbmcb(hObject,eventData) %#ok<INUSD>
-%Oufti.v0.3.1
-%@modified: Ahmad J Paintdakhi July 15, 2013
-%@copyright 2012-2013 Yale University
-%==========================================================================
-%**********output********:
-%
-%**********Input********:
-%
-%purpose:  The function finds the current location of the mesh during drag
-%process and updates the cell mesh and box values.         
-%--------------------------------------------------------------------------
-%--------------------------------------------------------------------------
-if ishandle(ax),cp = get(ax,'CurrentPoint');end
-if ishandle(ax2), cp2 = get(ax2,'CurrentPoint');end
-if (cp2(1,1)> 0 && cp2(1,2)> 0 && cp2(1,2) < imsizes(end,1) && cp2(1,1) < imsizes(end,2) )
-    pointHistoryX = [pointHistoryX cp(1,1)];
-    pointHistoryY = [pointHistoryY cp(1,2)];
-    xValue = pointHistoryX(end-1) - cp(1,1);
-    yValue = pointHistoryY(end-1) - cp(1,2);
-    if ~isempty(selectedList) && oufti_doesCellStructureHaveMesh(selectedList,frame,cellList)
-        cellList.meshData{frame}{oufti_cellId2PositionInFrame...
-            (selectedList,frame,cellList)}.mesh(:,[2 4]) = ...
-            cellList.meshData{frame}{oufti_cellId2PositionInFrame...
-            (selectedList,frame,cellList)}.mesh(:,[2 4]) - yValue;
-        cellList.meshData{frame}{oufti_cellId2PositionInFrame...
-                (selectedList,frame,cellList)}.mesh(:,[1 3]) = ...
-                cellList.meshData{frame}{oufti_cellId2PositionInFrame...
-                (selectedList,frame,cellList)}.mesh(:,[1 3]) - xValue;
-        cellList.meshData{frame}{oufti_cellId2PositionInFrame...
-                (selectedList,frame,cellList)}.box(1) = ...
-                cellList.meshData{frame}{oufti_cellId2PositionInFrame...
-                (selectedList,frame,cellList)}.box(1) - xValue;
-        cellList.meshData{frame}{oufti_cellId2PositionInFrame...
-                (selectedList,frame,cellList)}.box(2) = ...
-                cellList.meshData{frame}{oufti_cellId2PositionInFrame...
-                (selectedList,frame,cellList)}.box(2) - yValue;
-        displayCellsForDrag(selectedList);
-        displaySelectedCells();
-    end
-   
-end
-end
-%##########################################################################
-
-
-%##########################################################################
-function wbucb(hObject,eventData) %#ok<INUSD>
-%--------------------------------------------------------------------------
-%--------------------------------------------------------------------------
-%function wbucb(hObject,eventData) %#ok<INUSD>
-%Oufti.v0.3.1
-%@modified: Ahmad J Paintdakhi July 15, 2013
-%@copyright 2012-2013 Yale University
-%==========================================================================
-%**********output********:
-%
-%**********Input********:
-%
-%purpose:  The function finds the current location of the mesh during drag
-%process and updates the cell mesh and box values.         
-%--------------------------------------------------------------------------
-%--------------------------------------------------------------------------
-if strcmp(get(hObject,'SelectionType'),'normal')
-   set(hObject,'Pointer','arrow')
-   set(hObject,'WindowButtonMotionFcn',@mousemove)
-   set(hObject,'WindowButtonUpFcn',@dragbutonup)
-   displayCells();
-else
-   return
-end
-
-end
-%##########################################################################
-
-end%function selectclick
 
 function makeCellFromPoints(askfornumber)
     % creating a cell from a series of points
@@ -3427,177 +3057,1105 @@ function makeCellFromPoints(askfornumber)
     showCellData();
 end
 
-function dragbutonup(hObject, eventdata)%#ok<INUSD>
+function saveundo
+    if isfield(cellList,'meshData')
+        if length(cellList.meshData)<frame, return; end
+        undo.cellListFrame = cellList.meshData{frame};
+        undo.cellId        = cellList.cellId{frame};
+    else
+        if length(cellList)<frame, return; end
+        undo.cellListFrame = cellList{frame}; 
+    end
+    undo.selectedList = selectedList;
+    undo.frame = frame;
+end
+
+function doundo
+    if isempty(undo) || frame>imsizes(end,3)
+        disp('Nothing to undo: no changes made')
+    else
+        if frame~=undo.frame
+            frame = undo.frame;
+            set(handles.imslider,'value',frame);
+            imslider(handles.imslider, eventdata)
+        end
+        cellList.meshData{undo.frame} = undo.cellListFrame;
+        cellList.cellId{undo.frame}   = undo.cellId;
+        selectedList = undo.selectedList;
+        selDispList = [];
+        undo = [];
+        displayCells
+        displaySelectedCells
+        showCellData
+        updateLineageTree();
+        disp('Meshes updated to the previous state')
+    end
+end
+
+function polarity_cbk(hObject, eventdata)%#ok<INUSD>
+    if hObject==handles.removepolarity && get(handles.removepolarity,'Value')
+        set(handles.setpolarity,'Value',0)
+    elseif hObject==handles.setpolarity && get(handles.setpolarity,'Value')
+        set(handles.removepolarity,'Value',0)
+    end
+end
+
+function [extend, control, dblclick, ax] = get_modifiers(hObject)
+    % determine whether Shift/Control/Alt has been pressed
+     if hObject==handles.maingui
+        ax = get(get(handles.impanel,'children'),'children');
+        if iscell(ax), ax = ax{1}; end;
+        extend = strcmpi(hFig.SelectionType,'extend');
+        control = strcmpi(hFig.SelectionType,'alt');
+        dblclick = strcmpi(hFig.SelectionType,'open');
+     else
+        if ~ishandle(handles.himage), return; end
+        ax = get(handles.himage,'parent');
+        extend = strcmpi(get(handles.hfig,'SelectionType'),'extend');
+        control = strcmpi(get(handles.hfig,'SelectionType'),'alt');
+        dblclick = strcmpi(get(handles.hfig,'SelectionType'),'open');
+     end
+end
+
+function position = get_mouse_position(ax)
+    ps = get(ax,'CurrentPoint');
+    if ~isempty(ps)
+        if ps(1,1)<0 || ps(1,1)>imsizes(end,2) || ps(1,2)<0 || ps(1,2)>imsizes(end,1)
+            position = [];
+            return
+        end
+        position = struct('x',ps(1,1), 'y',ps(1,2));
+    else
+        position = [];
+    end
+end
+
+% TODO: replace calls to this function
+function pos = getmousepos
+    himageStruct = struct(get(handles.himage));
+    ax = himageStruct.Parent;
+    pos = get_mouse_position(ax);
+% % % %     ax = himageStruct.Parent;
+% % % %     ax = get(handles.himage,'parent');
+%     ps = get(himageStruct.Parent,'CurrentPoint');
+%     pos = struct('x',ps(1,1), 'y',ps(1,2));
+% %     pos.x = ps(1,1);
+% %     pos.y = ps(1,2);
+%     if ps(1,1)<0 || ps(1,1)>imsizes(end,2) || ps(1,2)<0 || ps(1,2)>imsizes(end,1), pos = []; end
+end
+
+
+function active = is_tool_active(h)
+    active = ishandle(h) && get(h,'Value');
+end
+
+
+function found_cell = get_cell_at(pos)
+    found_cell  = [];
+    
+    % for each cell in frame
+    [~, ids] = oufti_getFrame(frame, cellList);
+    for celln=ids
+        cell = oufti_getCellStructure(celln,frame,cellList);
+        % try to use mesh
+        if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
+            % if no bounding box, bail
+            try
+                box = cell.box;
+            catch
+                return;
+            end
+            try
+                if inpolygon(pos.x,pos.y,[box(1) box(1) box(1)+box(3) box(1)+box(3)],[box(2) box(2)+box(4) box(2)+box(4) box(2)])
+                    mesh = cell.mesh;
+                    if inpolygon(pos.x,pos.y,[mesh(:,1);flipud(mesh(:,3))],[mesh(:,2);flipud(mesh(:,4))])
+                        % found one!
+                        found_cell = celln; 
+                        return
+                    end
+                end
+            catch err
+                return;
+            end
+        elseif isfield(cell,'model') && length(cell.model)>1 % Using 'contour' instead of 'mesh'
+            box = cell.box;
+            if inpolygon(pos.x,pos.y,[box(1) box(1) box(1)+box(3) box(1)+box(3)],[box(2) box(2)+box(4) box(2)+box(4) box(2)])
+                contour = cell.model;
+                if inpolygon(pos.x,pos.y,contour(:,1),contour(:,2))
+                    found_cell = celln;
+                    return
+                end
+            end
+        end
+    end 
+end
+
+function is = is_cell_selected(celln)
+    is = ~isempty(find((selectedList-celln)==0,1));
+end
+
+function select_cell(celln)
+    if ~is_cell_selected(celln)
+        selectedList = [selectedList, celln];
+    end
+end
+
+function deselect_cell(celln)
+    k = find((selectedList-celln)==0,1);
+    selectedList = selectedList([1:k-1 k+1:end]);
+end
+
+function toggle_selection(celln)
+%     k = find((selectedList-celln)==0,1);
+%     if isempty(k)
+%         selectedList = [selectedList, celln];
+%     else
+%         selectedList = selectedList([1:k-1 k+1:end]);
+%     end
+    if is_cell_selected(celln)
+        deselect_cell(celln)
+    else
+        select_cell(celln)
+    end
+end
+
+function toggle_selection_only(celln)
+    if is_cell_selected(celln)
+        deselect_all()
+    else
+        selectedList = [celln];
+    end
+end
+
+function deselect_all()
+    selectedList = [];
+end
+
+STATE_NONE = 0;
+STATE_MOUSE_DOWN = 5;
+STATE_DRAG_TO_SELECT = 1;
+STATE_ADDING_POINTS = 2;
+STATE_DRAGGING_CELLS = 3;
+STATE_CLICK_TO_SPLIT = 4;
+STATE_DRAG_FIELD = 6;
+
+mouseState = STATE_NONE;
+pointHistoryX = [];
+pointHistoryY = [];
+
+
+function mousedown(hObject, eventdata)
+    mouseState = STATE_NONE;
+    
+    % determine whether Shift/Control/Alt has been pressed
+    [extend, control, dblclick, ax] = get_modifiers(hObject);
+
+    % update isShiftPressed
+    if ~extend && ~dblclick, isShiftPressed = 0; end
+
+    % determine the location of the mouse
+    pos = get_mouse_position(ax);
+
+    
+    if is_tool_active(handles.addcell)
+        % nothing to do?
+    elseif is_tool_active(handles.setpolarity)
+        % TODO
+    elseif is_tool_active(handles.removepolarity)
+        % TODO
+    elseif is_tool_active(handles.drag)
+        celln = get_cell_at(pos);
+        
+        % is there a cell at this position?
+        if ~isempty(celln)
+            
+            % if so and 
+            if strcmp(get(hObject,'SelectionType'),'normal')
+               mouseState = STATE_DRAGGING_CELLS;
+                   
+                % filter selectedList to include only those cells with a mesh
+                selectedList = selectedList(arrayfun(@(x) oufti_doesCellStructureHaveMesh(x,frame,cellList),selectedList));
+                cellsToDragHistory = [cellsToDragHistory selectedList];
+
+                pointHistoryX = pos.x;
+                pointHistoryY = pos.y;
+            
+                % if this cell is selected, drag all selected cells; otherwise
+                if ~is_cell_selected(celln)
+
+                    % if shift is pressed, add this cell to selection and drag
+                    % all selected cells
+                    if isShiftPressed
+                        select_cell(celln);
+                    % otherwise select only this cell
+                    else
+                        selectedList = [celln];
+                    end
+                end
+            end
+        
+        % no cell here
+        else
+            mouseState = STATE_MOUSE_DOWN;
+        end
+    else
+        mouseState = STATE_MOUSE_DOWN;
+    end
+
+end
+
+function mousemove(hObject, eventdata)
+    % determine whether Shift/Control/Alt has been pressed
+    [extend, control, dblclick, ax] = get_modifiers(hObject);
+
+    % update isShiftPressed
+    if ~extend && ~dblclick, isShiftPressed = 0; end
+
+    % determine the location of the mouse
+    pos = get_mouse_position(ax);
+    if isempty(pos); return; end
+    
+    
+    if mouseState == STATE_MOUSE_DOWN
+        
+        % start selecting a group of cells
+        if control || extend
+            mouseState = STATE_DRAG_TO_SELECT;
+            groupSelectionMode = true;
+            groupSelectionPosition = [pos.x pos.y];
+
+        % start moving the field
+        elseif hObject==handles.hfig && ~extend && ~control
+            mouseState = STATE_DRAG_FIELD;
+            
+            dragMode = true;
+            dragPosition = getmousepos;
+        end
+        
+        % TODO: I don't quite understand this
+        if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end
+        groupSelectionRectH = [];
+        regionSelectionRect = []; 
+    end
+    
+    if mouseState == STATE_DRAG_FIELD
+        drag_field()
+    elseif mouseState == STATE_DRAGGING_CELLS
+        [extend, control, dblclick, ax] = get_modifiers(hObject);
+        drag_selected_cells(ax)
+    elseif mouseState == STATE_DRAG_TO_SELECT
+        drag_rubberband_selection(hObject, eventdata)
+    end
+    
+    
+    % stuff to do on every mousemove:
+    if pos.x>0 && pos.y>0 && pos.x<imsizes(end,2) && pos.y<imsizes(end,1)
+        set(handles.celldata.coursor,'String',[...
+            'x=' num2str(round(pos.x))... 
+            ', y=' num2str(round(pos.y))]);
+    else
+        set(handles.celldata.coursor,'String','');
+    end
+    
+end
+
+
+
+function mouseup(hObject, eventdata)
+    % determine whether Shift/Control/Alt has been pressed
+    [extend, control, dblclick, ax] = get_modifiers(hObject);
+
+    % update isShiftPressed
+    if ~extend && ~dblclick, isShiftPressed = 0; end
+
+    % determine the location of the mouse
+    pos = get_mouse_position(ax);
+    
+    if mouseState == STATE_DRAG_FIELD
+        mouseState = STATE_NONE;
+        dragMode = false;
+        dragPosition = [];
+    end
+    
+    if is_tool_active(handles.addcell)
+        global p
+        
+        % adding cells
+        if ~dblclick && ~control && max(imsizes(1:3,1))>0
+            if isempty(cellDrawPositions)
+                edit2p;
+                if ~isfield(p,'algorithm'), disp('Parameters not loaded or "algorithm" field missing'); return; end
+                if ~ismember(p.algorithm,[1 4])
+                    disp('Adding cells is only inplemented for algorithms 1 and 4')
+                    return
+                end
+            end
+            % adding next cell drawing point for manually adding cell
+            flag = false;
+            ax = get(get(handles.impanel,'children'),'children');
+            ah = ~ishandle(ax);
+            if ah(1) && ~iscell(ax), disp('Could not add point: cannot find axes'); return; end
+            if iscell(ax), ax = ax{1}; end;
+            ax(2) = get(handles.himage,'parent');
+%             cellDrawPositions = [cellDrawPositions;ps(1,1:2)]; % TODO: switch to pos
+            
+            pos = get_mouse_position(ax(1));
+            cellDrawPositions = [cellDrawPositions;pos.x pos.y]; % TODO: switch to pos
+            
+            if ishandle(cellDrawObjects), delete(cellDrawObjects); end
+            cellDrawObjects = [];
+            for k=1:2
+                set(ax(k),'NextPlot','add');
+                cellDrawObjects = [cellDrawObjects plot(ax(k),cellDrawPositions(:,1),cellDrawPositions(:,2),'.-r')];%#ok<AGROW>
+            end
+
+            % TODO: ??
+        end
+
+        % finishing manually adding cell: adding last point
+        if size(cellDrawPositions,2)>1 && dblclick && ~control
+            saveundo;
+            makeCellFromPoints(isShiftPressed);
+
+            % TODO: ??
+        end
+    
+    elseif splitSelectionMode
+        celln = get_cell_at(pos);
+        splitSelectionMode = false;
+        if ~isempty(celln) 
+            forcesplitcellonclick(frame,celln,pos.x,pos.y) 
+        else
+            disp('Manual splitting regime terminated');
+        end
+    elseif is_tool_active(handles.setpolarity)
+        % TODO
+    elseif is_tool_active(handles.removepolarity)
+        % TODO        
+    elseif mouseState == STATE_DRAGGING_CELLS
+        mouseState = STATE_NONE;
+        
+    % if we just clicked on a cell, toggle its selection (or add to
+    % selection, taking into account shift)
+    elseif mouseState == STATE_MOUSE_DOWN
+        celln = get_cell_at(pos);
+        
+        if isShiftPressed
+            if ~isempty(celln)
+                toggle_selection(celln) 
+            end
+        else
+            if ~isempty(celln)
+                toggle_selection_only(celln)
+            else
+                deselect_all()
+            end
+        end
+    
+    % if we've finished dragging a rubber band selection
+    elseif mouseState == STATE_DRAG_TO_SELECT
+        finish_rubberband_selection(hObject, eventdata)
+    end
+    
+    % update GUI
+%     displayCells();
+    displaySelectedCells();
+    showCellData();
+    updateLineageTree();
+    mouseState = STATE_NONE;
+end
+
+
+function drag_field()
+    dragPositionNew = getmousepos;
+    if isempty(dragPositionNew), dragMode=false; return; end
+    apiHP = iptgetapi(handles.hpanel);
+    ps = apiHP.getVisibleLocation();
+    rect = apiHP.getVisibleImageRect();
+    apiHP.setVisibleLocation(min(imsizes(end,2)-rect(3),max(0,ps(1)+dragPosition.x-dragPositionNew.x)),...
+        min(imsizes(end,1)-rect(4),max(0,ps(2)+dragPosition.y-dragPositionNew.y)));
+end
+
+function drag_selected_cells(ax)
+    if ishandle(ax),cp = get(ax,'CurrentPoint');end
+    if (cp(1,1)> 0 && cp(1,2)> 0 && cp(1,2) < imsizes(end,1) && cp(1,1) < imsizes(end,2) )
+        pointHistoryX = [pointHistoryX cp(1,1)];
+        pointHistoryY = [pointHistoryY cp(1,2)];
+        xValue = pointHistoryX(end-1) - cp(1,1);
+        yValue = pointHistoryY(end-1) - cp(1,2);
+
+        if ~isempty(selectedList)                 
+            for ii = 1:length(selectedList)
+
+                cellPos = oufti_cellId2PositionInFrame(selectedList(ii),frame,cellList);
+
+                % offset the cell mesh and bounding box according to drag data
+                cellList.meshData{frame}{cellPos}.mesh(:,[2 4]) =  cellList.meshData{frame}{cellPos}.mesh(:,[2 4]) - yValue;
+                cellList.meshData{frame}{cellPos}.mesh(:,[1 3]) =  cellList.meshData{frame}{cellPos}.mesh(:,[1 3]) - xValue;
+                cellList.meshData{frame}{cellPos}.box(1) =  cellList.meshData{frame}{cellPos}.box(1) - xValue;
+                cellList.meshData{frame}{cellPos}.box(2) =  cellList.meshData{frame}{cellPos}.box(2) - yValue;
+
+                displayCellsForDrag(selectedList(ii));
+            end
+            displayCells();
+            displaySelectedCells();
+        end
+    end
+end
+
+function drag_rubberband_selection(hObject, eventdata) %#ok<INUSD>
+    
+    % TODO: handle this
+    global handles1 imageHandle;
+    try
+    if ~isempty(handles1) && strcmp(get(handles1.spotFinderPanel,'Visible'),'on')
+        return;
+    end
+    
+    [extend, control, dblclick, ax] = get_modifiers(hObject);
+    % determine whether Shift/Control/Alt has been pressed
+    pos = get_mouse_position(ax);
+    
+    % moved above
+%     if isempty(ax), return; end
+%     pt = get(ax,'CurrentPoint');
+%     if isempty(pt), return; end
+%     hFig.Pointer = 'arrow'; % TODO: create more proper cursor control
+%     pt = round(pt(1,1:2));
+%     if pt(1)>0 && pt(2)>0 && pt(1)<imsizes(end,2) && pt(2)<imsizes(end,1)
+%         set(handles.celldata.coursor,'String',['x=' num2str(pt(1)) ', y=' num2str(pt(2))]);
+%     else
+%         set(handles.celldata.coursor,'String','');
+%     end
+
+    if groupSelectionMode
+        % selecting a group of cells: draw rectangle
+        ps = [pos.x pos.y];
+        
+        if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end;
+%         if regionSelectionMode
+%             edgeColor = [1 0 0];
+%         else
+%             edgeColor = [1 1 1];
+%         end 
+        
+        groupSelectionRectH = rectangle('Position',[min(ps,groupSelectionPosition),max([1,1],abs(ps-groupSelectionPosition))],...
+            'EdgeColor',[1 1 1],'LineStyle',':');
+        
+    end
+    catch err
+        if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end;
+    end
+end
+
+function finish_rubberband_selection(hObject, eventdata)%#ok<INUSD>
    
     try
-    dragMode = false;
-    if groupSelectionMode
-        if hObject==handles.maingui
-            ax = get(get(handles.impanel,'children'),'children');
-            if ishandle(handles.himage), ax(2) = get(handles.himage,'parent'); end
-            if iscell(ax), ax = ax{1}; end;
-            extend = strcmpi(hFig.SelectionType,'extend');
-        else
-            ax = get(handles.himage,'parent');
-            ax(2) = get(get(handles.impanel,'children'),'children');
-            extend = strcmpi(get(handles.hfig,'SelectionType'),'extend');
-        end
-        if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end; groupSelectionRectH = [];
-        ps = get(ax(1),'CurrentPoint');
-        pos = ps(1,1:2);
-        pos1 = max(min(pos,groupSelectionPosition),1);
-        pos2 = min(max(pos,groupSelectionPosition),imsizes(end,2:-1:1));
-        pos3 = max([1,1],pos2-pos1);
-        % groupSelectionRectH = rectangle('Position',[pos1,pos3],'EdgeColor',[1 1 1],'LineStyle',':');
-        if regionSelectionMode
-            groupSelectionRectH = [];
-            for i=1:2
-                groupSelectionRectH(i) = rectangle('Parent',ax(i),'Position',[pos1,pos3],'EdgeColor',[1 0 0],'LineStyle','-');
+        dragMode = false;
+        if groupSelectionMode
+            
+            % TODO: factor out; this is slightly different than
+            % get_modifiers: need to get both axes, with ax(1) being the
+            % active axis and ax(2) being the other one
+            if hObject==handles.maingui
+                ax = get(get(handles.impanel,'children'),'children');
+                if ishandle(handles.himage), ax(2) = get(handles.himage,'parent'); end
+                if iscell(ax), ax = ax{1}; end;
+                extend = strcmpi(hFig.SelectionType,'extend');
+            else
+                ax = get(handles.himage,'parent');
+                ax(2) = get(get(handles.impanel,'children'),'children');
+                extend = strcmpi(get(handles.hfig,'SelectionType'),'extend');
             end
-            regionSelectionRect = [ceil(pos1),floor(pos3)];
-            if isfield(handles,'export') && isfield(handles.export,'figure') && ishandle(handles.export.figure)
-                set(handles.export.region(1),'String',num2str(regionSelectionRect(1)+1));
-                set(handles.export.region(2),'String',num2str(regionSelectionRect(2)+1));
-                set(handles.export.region(3),'String',num2str(regionSelectionRect(3)-2));
-                set(handles.export.region(4),'String',num2str(regionSelectionRect(4)-2));
-            end
-        else
-            if ~extend && ~isempty(selectedList)
-                selectedList = [];
-            end
-            numCells = oufti_getFrameLength(frame, cellList);
-            [~, ids] = oufti_getFrame(frame, cellList);
-            for celln=ids
-                if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
-                    cell = oufti_getCellStructure(celln,frame,cellList);
-                    box = cell.box;
-                    mbox = box(1:2)+box(3:4)/2-1/2;
-                    if pos1(1)<=mbox(1) && pos1(2)<=mbox(2) && pos2(1)>=mbox(1) && pos2(2)>=mbox(2)
-                        mesh = cell.mesh;
-                        mesh1 = min(min(mesh(:,1:2)),min(mesh(:,3:4)));
-                        mesh2 = max(max(mesh(:,1:2)),max(mesh(:,3:4)));
-                        if pos1(1)<=mesh1(1) && pos1(2)<=mesh1(2) && pos2(1)>=mesh2(1) && pos2(2)>=mesh2(2)
-                            if isempty(find((selectedList-celln)==0,1))
-                                % Adding a cell to selectedList
-                                selectedList = [selectedList, celln];%#ok<AGROW>
-                            else
-                                % Removing a cell from selectedList
-                                [n,k] = find((selectedList-celln)==0,1);
-                                selectedList = selectedList([1:k-1 k+1:end]);
+            if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end; groupSelectionRectH = [];
+            ps = get(ax(1),'CurrentPoint');
+            pos = ps(1,1:2);
+            pos1 = max(min(pos,groupSelectionPosition),1);
+            pos2 = min(max(pos,groupSelectionPosition),imsizes(end,2:-1:1));
+            pos3 = max([1,1],pos2-pos1);
+            if regionSelectionMode
+                groupSelectionRectH = [];
+                for i=1:2
+                    groupSelectionRectH(i) = rectangle('Parent',ax(i),'Position',[pos1,pos3],'EdgeColor',[1 0 0],'LineStyle','-');
+                end
+                regionSelectionRect = [ceil(pos1),floor(pos3)];
+                if isfield(handles,'export') && isfield(handles.export,'figure') && ishandle(handles.export.figure)
+                    set(handles.export.region(1),'String',num2str(regionSelectionRect(1)+1));
+                    set(handles.export.region(2),'String',num2str(regionSelectionRect(2)+1));
+                    set(handles.export.region(3),'String',num2str(regionSelectionRect(3)-2));
+                    set(handles.export.region(4),'String',num2str(regionSelectionRect(4)-2));
+                end
+            else
+                if ~extend && ~isempty(selectedList)
+                    selectedList = [];
+                end
+                numCells = oufti_getFrameLength(frame, cellList);
+                [~, ids] = oufti_getFrame(frame, cellList);
+                for celln=ids
+                    if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
+                        cell = oufti_getCellStructure(celln,frame,cellList);
+                        box = cell.box;
+                        mbox = box(1:2)+box(3:4)/2-1/2;
+                        if pos1(1)<=mbox(1) && pos1(2)<=mbox(2) && pos2(1)>=mbox(1) && pos2(2)>=mbox(2)
+                            mesh = cell.mesh;
+                            mesh1 = min(min(mesh(:,1:2)),min(mesh(:,3:4)));
+                            mesh2 = max(max(mesh(:,1:2)),max(mesh(:,3:4)));
+                            if pos1(1)<=mesh1(1) && pos1(2)<=mesh1(2) && pos2(1)>=mesh2(1) && pos2(2)>=mesh2(2)
+                                toggle_selection(celln)
                             end
                         end
-                    end
-                elseif oufti_doesCellHaveContour(celln, frame, cellList)
-                    cell = oufti_getCellStructure(celln, frame, cellList);
-                    box = cell.box;
-                    mbox = box(1:2)+box(3:4)/2-1/2;
-                    if pos1(1)<=mbox(1) && pos1(2)<=mbox(2) && pos2(1)>=mbox(1) && pos2(2)>=mbox(2)
-                        contour = cell.model;
-                        limx = [min(contour(:,1)) max(contour(:,1))];
-                        limy = [min(contour(:,2)) max(contour(:,2))];
-                        if pos1(1)<=limx(1) && pos1(2)<=limy(2) && pos2(1)>=limx(1) && pos2(2)>=limy(2)
-                            if isempty(find((selectedList-celln)==0,1))
-                                % Adding a cell to selectedList
-                                selectedList = [selectedList, celln];%#ok<AGROW>
-                            else
-                                % Removing a cell from selectedList
-                                [~,k] = find((selectedList-celln)==0,1);
-                                selectedList = selectedList([1:k-1 k+1:end]);
+                    elseif oufti_doesCellHaveContour(celln, frame, cellList)
+                        cell = oufti_getCellStructure(celln, frame, cellList);
+                        box = cell.box;
+                        mbox = box(1:2)+box(3:4)/2-1/2;
+                        if pos1(1)<=mbox(1) && pos1(2)<=mbox(2) && pos2(1)>=mbox(1) && pos2(2)>=mbox(2)
+                            contour = cell.model;
+                            limx = [min(contour(:,1)) max(contour(:,1))];
+                            limy = [min(contour(:,2)) max(contour(:,2))];
+                            if pos1(1)<=limx(1) && pos1(2)<=limy(2) && pos2(1)>=limx(1) && pos2(2)>=limy(2)
+                                toggle_selection(celln)
                             end
                         end
                     end
                 end
+                displaySelectedCells();
+                showCellData();
+                if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end; groupSelectionRectH = [];
+                groupSelectionRectH = [];
             end
-            displaySelectedCells();
-            showCellData();
-            if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end; groupSelectionRectH = [];
-            groupSelectionRectH = [];
+            groupSelectionMode = false;
         end
-        groupSelectionMode = false;
-    end
     catch err
         if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end; groupSelectionRectH = [];
         groupSelectionRectH = [];
         return;
     end
   
-    
-    
 end
 
-function pos = getmousepos
-    himageStruct = struct(get(handles.himage));
-% % %     ax = himageStruct.Parent;
-% % %     ax = get(handles.himage,'parent');
-    ps = get(himageStruct.Parent,'CurrentPoint');
-    pos = struct('x',ps(1,1), 'y',ps(1,2));
-%     pos.x = ps(1,1);
-%     pos.y = ps(1,2);
-    if ps(1,1)<0 || ps(1,1)>imsizes(end,2) || ps(1,2)<0 || ps(1,2)>imsizes(end,1), pos = []; end
-end
 
-function mousemove(hObject, eventdata)%#ok<INUSD>
-    global handles1 imageHandle
-    try
-    if ~isempty(handles1) && strcmp(get(handles1.spotFinderPanel,'Visible'),'on')
-        return;
-    end
-    if ishandle(imageHandle),delete(imageHandle.fig);end
-    if hObject==handles.maingui
-        ax = get(get(handles.impanel,'Children'),'Children');
-        if iscell(ax), ax = ax{1}; end;
-        extend = strcmp(hFig.SelectionType,'extend');
-    else
-        if ~ishandle(handles.himage), return; end
-        himageStruct = get(handles.himage);
-        ax = himageStruct.Parent;
-        extend = strcmp(get(handles.hfig,'SelectionType'),'extend');
-    end
-    if isempty(ax), return; end
-    pt = get(ax,'CurrentPoint');
-    if isempty(pt), return; end
-    hFig.Pointer = 'arrow'; % TODO: create more proper cursor control
-    pt = round(pt(1,1:2));
-    if pt(1)>0 && pt(2)>0 && pt(1)<imsizes(end,2) && pt(2)<imsizes(end,1)
-        set(handles.celldata.coursor,'String',['x=' num2str(pt(1)) ', y=' num2str(pt(2))]);
-    else
-        set(handles.celldata.coursor,'String','');
-    end
-    if groupSelectionMode
-        % selecting a group of cells: draw rectangle
-        ps = get(ax,'CurrentPoint');
-        pos = ps(1,1:2);
-        if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end;
-        if regionSelectionMode
-            groupSelectionRectH = rectangle('Position',[min(pos,groupSelectionPosition),max([1,1],abs(pos-groupSelectionPosition))],...
-                'EdgeColor',[1 0 0],'LineStyle',':');
-        else
-            groupSelectionRectH = rectangle('Position',[min(pos,groupSelectionPosition),max([1,1],abs(pos-groupSelectionPosition))],...
-                'EdgeColor',[1 1 1],'LineStyle',':');
-        end
-    end
-    % if gdisp % Awkward patch to make the behavior of log window same as zoom window
-    %     set(handles.logcheck,'Value',1)
-    % else
-    %     set(handles.logcheck,'Value',0)
-    % end
-    catch err
-        if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end;
-    end
-end
 
-function dragmouse(hObject, eventdata)
-    mousemove(hObject, eventdata);
-    if dragMode
-        dragPositionNew = getmousepos;
-        if isempty(dragPositionNew), dragMode=false; return; end
-        apiHP = iptgetapi(handles.hpanel);
-        pos = apiHP.getVisibleLocation();
-        rect = apiHP.getVisibleImageRect();
-        apiHP.setVisibleLocation(min(imsizes(end,2)-rect(3),max(0,pos(1)+dragPosition.x-dragPositionNew.x)),...
-            min(imsizes(end,1)-rect(4),max(0,pos(2)+dragPosition.y-dragPositionNew.y)));
-    end
-end
+% function mousedown(hObject, eventdata)%#ok<INUSD>
+%     global p handles1 imageHandle spotlist cellsToDragHistory
+%     
+%     % separate behavior for spotFinder
+%     if ~isempty(handles1) && isfield(handles1,'spotFinderPanel') && strcmp(get(handles1.spotFinderPanel,'Visible'),'on') 
+%        if isempty(imageHandle) || ~ishandle(imageHandle.fig) || isempty(spotlist), return; end
+%           ps = get(imageHandle.ax,'CurrentPoint');
+%           xlimit = get(imageHandle.ax,'XLim');
+%           ylimit = get(imageHandle.ax,'YLim');
+%           x = ps(1,1);
+%           y = ps(1,2);
+%           if x<xlimit(1) || x>xlimit(2) || y<ylimit(1) || y>ylimit(2), return; end
+%           dst = (y-spotlist(:,8)).^2+(x-spotlist(:,9)).^2;
+%           [mindst,minind] = min(dst);
+%           if mindst>mean(xlimit(2)-xlimit(1),ylimit(2)-ylimit(1))^2/10, return; end
+%           lst(minind) = ~lst(minind);
+%           handles1.spotList{handles1.frame}{handles1.cell}.lst(minind) = lst(minind);
+%           if lst(minind)
+%              set(imageHandle.spots(minind),'Color',[1 0.1 0]);
+%              disp('Selected spot:')
+%           else
+%              set(imageHandle.spots(minind),'Color',[0 0.8 0]);
+%              disp('Unselected spot:')
+%           end
+%         spotlist = handles1.spotList{handles1.frame}{handles1.cell}.spotlist;
+%         disp([' background: ' num2str(spotlist(minind,1))])
+%         disp([' squared width: ' num2str(spotlist(minind,2))])
+%         disp([' height: ' num2str(spotlist(minind,3))])
+%         disp([' relative squared error: ' num2str(spotlist(minind,4))])
+%         disp([' perimeter variance: ' num2str(spotlist(minind,5))])
+%         disp([' filtered/unfiltered ratio: ' num2str(spotlist(minind,6))])
+%         
+%     % for cellDetection
+%     else
+%          % determine whether Shift/Control/Alt has been pressed
+%          [extend, control, dblclick, ax] = get_modifiers(hObject);
+% 
+%          % update isShiftPressed
+%          if ~extend && ~dblclick, isShiftPressed = 0; end
+%            
+%          % determine the location of the mouse
+%          pos = get_mouse_position(ax);
+% 
+%          flag = true;
+%          if oufti_doesFrameExist(frame, cellList) && ~oufti_isFrameEmpty(frame, cellList) && ~get(handles.addcell, 'Value')
+%             
+%             % TODO: do NOT want to clear the selection if the drag button
+%             % is enabled and 1+ cell is selected
+%             dragModeEnabled = ishandle(handles.drag) && get(handles.drag,'Value');
+%             
+%             
+%             if ~extend && ~isempty(selectedList) && ~dragModeEnabled
+%                 selectedList = [];
+%             end
+% 
+%             if ~control
+% 
+%                 % for each cell in frame
+%                 [~, ids] = oufti_getFrame(frame, cellList);
+%                 for celln=ids
+%                     cell = oufti_getCellStructure(celln,frame,cellList);
+%                     if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
+%                         try
+%                             box = cell.box;
+%                         catch
+%                             return;
+%                         end
+%                         try
+%                             if inpolygon(pos.x,pos.y,[box(1) box(1) box(1)+box(3) box(1)+box(3)],[box(2) box(2)+box(4) box(2)+box(4) box(2)])
+%                                 mesh = cell.mesh;
+%                                 if inpolygon(pos.x,pos.y,[mesh(:,1);flipud(mesh(:,3))],[mesh(:,2);flipud(mesh(:,4))])
+%                                     % selecting stalk
+%                                     if get(handles.setpolarity,'Value') && ~splitSelectionMode 
+%                                         flag = false;
+%                                         mn = ceil(size(mesh,1)/2);
+%                                         if inpolygon(pos.x,pos.y,[mesh(mn:end,1);flipud(mesh(mn:end,3))],[mesh(mn:end,2);flipud(mesh(mn:end,4))])
+%                                             if ~isfield(cell,'timelapse') || cell.timelapse || get(handles.runmode1,'value') % TODO correct
+%         %                                         cellList.meshData = reorientall(cellList.meshData,celln,true);
+%                                                   cellList = reorientall(cellList,celln,true);
+%                                             else
+%         % %                                          cellList.meshData{frame}{cell} = reorient(cellList.meshData{frame}{cell});
+%         % %                                          cellList.meshData{frame}{cell}.polarity = 1;
+%                                                 cellList = oufti_addCell(celln,frame,reorient(cell),cellList);
+%                                                 cellList = oufti_addFieldToCellList(celln,frame,'polarity',1,cellList);
+%                                             end
+%                                             updateorientation(celln)
+%                                             disp(['The orientation of cell ' num2str(celln) ' has been updated'])
+%                                         else
+%                                             if ~isfield(cell,'timelapse') || cell.timelapse || get(handles.runmode1,'value')
+%         %                                         cellList.meshData = reorientall(cellList.meshData,cell,false);
+%                                                 cellList = reorientall(cellList,celln,false);
+%                                             else
+%         %                                         cellList.meshData{frame}{cell}.polarity = 1;
+%                                                 cellList = oufti_addFieldToCellList(celln,frame,'polarity',1,cellList);
+%                                             end
+%                                             updateorientation(celln)
+%                                             disp(['The orientation of cell ' num2str(celln) ' has been set'])
+%                                         end
+%                                     
+%                                     % removing stalk
+%                                     elseif get(handles.removepolarity,'Value') && ~splitSelectionMode 
+%                                         flag = false;
+%                                         if ~isfield(cell,'timelapse') || cell.timelapse
+%         %                                     cellList.meshData = removeorientationall(cellList.meshData,cell);
+%                                               cellList = removeorientationall(cellList,celln);
+%                                         else
+%         %                                     cellList.meshData{frame}{cell}.polarity = 0;
+%                                             cellList = oufti_addFieldToCellList(celln,frame,'polarity',0,cellList);
+%                                         end
+%                                         updateorientation(celln)
+%                                         disp(['The orientation of cell ' num2str(celln) ' has been removed'])
+%                                         
+%                                     % selecting manual split position
+%                                     elseif splitSelectionMode 
+%                                         splitSelectionMode = false;
+%                                         forcesplitcellonclick(frame,celln,pos.x,pos.y)
+%                                         return
+%                                         
+%                                     % selecting cell
+%                                     else 
+%                                         flag = false;
+%                                         if isempty(find((selectedList-celln)==0,1))
+%                                             % Adding a cell to selectedList
+%                                             selectedList = [selectedList, celln];%#ok<AGROW>
+%                                             if isShiftPressed == 0
+%                                                 break;
+%                                             end
+%                                         else
+%                                             % Removing a cell from selectedList
+%                                             [~,k] = find((selectedList-celln)==0,1);
+%                                             selectedList = selectedList([1:k-1 k+1:end]);
+%                                         end
+%                                     end
+%                                 end
+%                             end
+%                         catch err
+%                             return;
+%                         end
+%                     elseif isfield(cell,'model') && length(cell.model)>1 && ...
+%                             ~get(handles.setpolarity,'Value') && ~get(handles.removepolarity,'Value') % Using 'contour' instead of 'mesh'
+%                         box = cell.box;
+%                         if inpolygon(pos.x,pos.y,[box(1) box(1) box(1)+box(3) box(1)+box(3)],[box(2) box(2)+box(4) box(2)+box(4) box(2)])
+%                             contour = cell.model;
+%                             if inpolygon(pos.x,pos.y,contour(:,1),contour(:,2))
+%                                 flag = false;
+%                                 if p.algorithm == 1 && splitSelectionMode
+%                                    disp('Cell with no mesh can not be splitted at this moment, deleted the cell and add the two cells manually');
+%                                     return;
+%                                 end
+%                                 if isempty(find((selectedList-celln)==0,1))
+%                                     selectedList = [selectedList, celln]; %#ok<AGROW>% Adding a cell to selectedList
+%                                 else
+%                                     [~,k] = find((selectedList-celln)==0,1);
+%                                     selectedList = selectedList([1:k-1 k+1:end]); % Removing a cell from selectedList
+%                                 end
+%                             end
+%                         end
+%                     end
+%                 end
+%             end
+%             displaySelectedCells();
+%             showCellData();
+%             %------------------------------------------------------------------
+%             %this statement checks if a drag selection is enabled upon which it
+%             %calls wbmcb and wbucb functions which perform drag operation of
+%             %cell mesh.  The dragging of cell meshes is perfromed by clicking
+%             %on a particular mesh and dradgging to a desired position with the
+%             %left key of a mouse.  Once the mouse button is released then that
+%             %location becomed the new place of the dragged cell mesh.
+%             if dragModeEnabled
+%                cellsToDragHistory = [cellsToDragHistory selectedList];
+%                if strcmp(get(hObject,'SelectionType'),'normal')
+%                   % filter selectedList to include only those cells with a mesh
+%                   selectedList = selectedList(arrayfun(@(x) oufti_doesCellStructureHaveMesh(x,frame,cellList),selectedList));
+%                    
+%                   if ishandle(ax),cp = get(ax,'CurrentPoint');end
+%                   if ishandle(handles.impanel),impanelStruct = struct(get(handles.impanel));end
+%                   ax2 = get(impanelStruct.Children,'children');
+%                   if iscell(ax2), ax2 = ax2{1}; end 
+% 
+%                   pointHistoryX = cp(1,1);
+%                   pointHistoryY = cp(1,2);
+%                   set(hObject,'WindowButtonMotionFcn',@wbmcb)
+%                   set(hObject,'WindowButtonUpFcn',@wbucb)
+% 
+%                end
+%             elseif ishandle(handles.drag) && ~get(handles.drag,'Value')
+%                 cellsToDragHistory = [];
+% 
+%             else
+%                 cellsToDragHistory = [];
+%             end
+%             %------------------------------------------------------------------
+%          end
+% 
+%          % terminate splitting regime if no cell has been selected
+%          if splitSelectionMode
+%              splitSelectionMode = false;
+%              disp('Manual splitting regime terminated');
+%          end
+% 
+%          % adding cells
+%          if get(handles.addcell,'Value') && ~dblclick && ~control && max(imsizes(1:3,1))>0
+%             if isempty(cellDrawPositions)
+%                 edit2p;
+%                 if ~isfield(p,'algorithm'), disp('Parameters not loaded or "algorithm" field missing'); return; end
+%                 if ~ismember(p.algorithm,[1 4])
+%                     disp('Adding cells is only inplemented for algorithms 1 and 4')
+%                     return
+%                 end
+%             end
+%             % adding next cell drawing point for manually adding cell
+%             flag = false;
+%             ax = get(get(handles.impanel,'children'),'children');
+%             ah = ~ishandle(ax);
+%             if ah(1) && ~iscell(ax), disp('Could not add point: cannot find axes'); return; end
+%             if iscell(ax), ax = ax{1}; end;
+%             ax(2) = get(handles.himage,'parent');
+%             cellDrawPositions = [cellDrawPositions;ps(1,1:2)];
+%             if ishandle(cellDrawObjects), delete(cellDrawObjects); end
+%             cellDrawObjects = [];
+%             for k=1:2
+%                 set(ax(k),'NextPlot','add');
+%                 cellDrawObjects = [cellDrawObjects plot(ax(k),cellDrawPositions(:,1),cellDrawPositions(:,2),'.-r')];%#ok<AGROW>
+%             end
+%             return
+%         end
+% 
+%         % finishing manually adding cell: adding last point
+%         if get(handles.addcell,'Value') && size(cellDrawPositions,2)>1 && dblclick && ~control
+%             flag = false;
+%             saveundo;
+%             makeCellFromPoints(isShiftPressed);
+%             return
+%         end
+% 
+%         % start selecting a group of cells
+%         if flag && (control || extend)
+%             groupSelectionMode = true;
+%             groupSelectionPosition = [pos.x pos.y];
+%         end
+% 
+%         % start moving the field
+%         if flag && hObject==handles.hfig && ~extend && ~control
+%             dragMode = true;
+%             dragPosition = getmousepos;
+%         end
+% 
+%         if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end
+%         groupSelectionRectH = [];
+%         regionSelectionRect = [];
+%     end
+% 
+% 
+%     %##########################################################################
+%     function wbmcb(hObject,eventData) %#ok<INUSD>
+%         %--------------------------------------------------------------------------
+%         %--------------------------------------------------------------------------
+%         %function wbmcb(hObject,eventData) %#ok<INUSD>
+%         %Oufti.v0.3.1
+%         %@modified: Ahmad J Paintdakhi July 15, 2013
+%         %@copyright 2012-2013 Yale University
+%         %==========================================================================
+%         %**********output********:
+%         %
+%         %**********Input********:
+%         %
+%         %purpose:  The function finds the current location of the mesh during drag
+%         %process and updates the cell mesh and box values.         
+%         %--------------------------------------------------------------------------
+%         %--------------------------------------------------------------------------
+%         if ishandle(ax),cp = get(ax,'CurrentPoint');end
+%         if ishandle(ax2), cp2 = get(ax2,'CurrentPoint');end
+%         if (cp2(1,1)> 0 && cp2(1,2)> 0 && cp2(1,2) < imsizes(end,1) && cp2(1,1) < imsizes(end,2) )
+%             pointHistoryX = [pointHistoryX cp(1,1)];
+%             pointHistoryY = [pointHistoryY cp(1,2)];
+%             xValue = pointHistoryX(end-1) - cp(1,1);
+%             yValue = pointHistoryY(end-1) - cp(1,2);
+%             
+%             if ~isempty(selectedList) % && oufti_doesCellStructureHaveMesh(selectedList,frame,cellList)
+% %                 cellList.meshData{frame}{oufti_cellId2PositionInFrame...
+% %                     (selectedList,frame,cellList)}.mesh(:,[2 4]) = ...
+% %                     cellList.meshData{frame}{oufti_cellId2PositionInFrame...
+% %                     (selectedList,frame,cellList)}.mesh(:,[2 4]) - yValue;
+% %                 cellList.meshData{frame}{oufti_cellId2PositionInFrame...
+% %                         (selectedList,frame,cellList)}.mesh(:,[1 3]) = ...
+% %                         cellList.meshData{frame}{oufti_cellId2PositionInFrame...
+% %                         (selectedList,frame,cellList)}.mesh(:,[1 3]) - xValue;
+% %                 cellList.meshData{frame}{oufti_cellId2PositionInFrame...
+% %                         (selectedList,frame,cellList)}.box(1) = ...
+% %                         cellList.meshData{frame}{oufti_cellId2PositionInFrame...
+% %                         (selectedList,frame,cellList)}.box(1) - xValue;
+% %                 cellList.meshData{frame}{oufti_cellId2PositionInFrame...
+% %                         (selectedList,frame,cellList)}.box(2) = ...
+% %                         cellList.meshData{frame}{oufti_cellId2PositionInFrame...
+% %                         (selectedList,frame,cellList)}.box(2) - yValue;
+%                 
+%             for ii = 1:length(selectedList)
+%                 
+%                 cellPos = oufti_cellId2PositionInFrame(selectedList(ii),frame,cellList);
+% 
+%                 % offset the cell mesh and bounding box according to drag data
+%                 cellList.meshData{frame}{cellPos}.mesh(:,[2 4]) =  cellList.meshData{frame}{cellPos}.mesh(:,[2 4]) - yValue;
+%                 cellList.meshData{frame}{cellPos}.mesh(:,[1 3]) =  cellList.meshData{frame}{cellPos}.mesh(:,[1 3]) - xValue;
+%                 cellList.meshData{frame}{cellPos}.box(1) =  cellList.meshData{frame}{cellPos}.box(1) - xValue;
+%                 cellList.meshData{frame}{cellPos}.box(2) =  cellList.meshData{frame}{cellPos}.box(2) - yValue;
+%                 
+%                 displayCellsForDrag(selectedList(ii));
+%             end
+% 
+%         %         cellPos = oufti_cellId2PositionInFrame(selectedList,frame,cellList);
+%         %         cellMeshData = cellList.meshData{frame}{cellPos};
+%         %         
+%         %         % offset the cell mesh and bounding box according to drag data
+%         %         cellMeshData.mesh(:,[2 4]) =  cellMeshData.mesh(:,[2 4]) - yValue;
+%         %         cellMeshData.mesh(:,[1 3]) =  cellMeshData.mesh(:,[1 3]) - xValue;
+%         %         cellMeshData.box(1) =  cellMeshData.box(1) - xValue;
+%         %         cellMeshData.box(2) =  cellMeshData.box(2) - yValue;
+%         %         cellList.meshData{frame}{cellPos} = cellMeshData;
+% 
+%                 
+%                 displayCells();
+%                 displaySelectedCells();
+%             end
+% 
+%         end
+%     end
+%     %##########################################################################
+% 
+% 
+%     %##########################################################################
+%     function wbucb(hObject,eventData) %#ok<INUSD>
+%         %--------------------------------------------------------------------------
+%         %--------------------------------------------------------------------------
+%         %function wbucb(hObject,eventData) %#ok<INUSD>
+%         %Oufti.v0.3.1
+%         %@modified: Ahmad J Paintdakhi July 15, 2013
+%         %@copyright 2012-2013 Yale University
+%         %==========================================================================
+%         %**********output********:
+%         %
+%         %**********Input********:
+%         %
+%         %purpose:  The function finds the current location of the mesh during drag
+%         %process and updates the cell mesh and box values.         
+%         %--------------------------------------------------------------------------
+%         %--------------------------------------------------------------------------
+%         if strcmp(get(hObject,'SelectionType'),'normal')
+%            set(hObject,'Pointer','arrow')
+%            set(hObject,'WindowButtonMotionFcn',@mousemove)
+%            set(hObject,'WindowButtonUpFcn',@mouseup)
+%            displayCells();
+%         else
+%            return
+%         end
+%     end
+%     %##########################################################################
+% 
+% end%function mousedown
+
+
+% 
+% function mouseup(hObject, eventdata)%#ok<INUSD>
+%    
+%     try
+%     dragMode = false;
+%     if groupSelectionMode
+%         if hObject==handles.maingui
+%             ax = get(get(handles.impanel,'children'),'children');
+%             if ishandle(handles.himage), ax(2) = get(handles.himage,'parent'); end
+%             if iscell(ax), ax = ax{1}; end;
+%             extend = strcmpi(hFig.SelectionType,'extend');
+%         else
+%             ax = get(handles.himage,'parent');
+%             ax(2) = get(get(handles.impanel,'children'),'children');
+%             extend = strcmpi(get(handles.hfig,'SelectionType'),'extend');
+%         end
+%         if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end; groupSelectionRectH = [];
+%         ps = get(ax(1),'CurrentPoint');
+%         pos = ps(1,1:2);
+%         pos1 = max(min(pos,groupSelectionPosition),1);
+%         pos2 = min(max(pos,groupSelectionPosition),imsizes(end,2:-1:1));
+%         pos3 = max([1,1],pos2-pos1);
+%         % groupSelectionRectH = rectangle('Position',[pos1,pos3],'EdgeColor',[1 1 1],'LineStyle',':');
+%         if regionSelectionMode
+%             groupSelectionRectH = [];
+%             for i=1:2
+%                 groupSelectionRectH(i) = rectangle('Parent',ax(i),'Position',[pos1,pos3],'EdgeColor',[1 0 0],'LineStyle','-');
+%             end
+%             regionSelectionRect = [ceil(pos1),floor(pos3)];
+%             if isfield(handles,'export') && isfield(handles.export,'figure') && ishandle(handles.export.figure)
+%                 set(handles.export.region(1),'String',num2str(regionSelectionRect(1)+1));
+%                 set(handles.export.region(2),'String',num2str(regionSelectionRect(2)+1));
+%                 set(handles.export.region(3),'String',num2str(regionSelectionRect(3)-2));
+%                 set(handles.export.region(4),'String',num2str(regionSelectionRect(4)-2));
+%             end
+%         else
+%             if ~extend && ~isempty(selectedList)
+%                 selectedList = [];
+%             end
+%             numCells = oufti_getFrameLength(frame, cellList);
+%             [~, ids] = oufti_getFrame(frame, cellList);
+%             for celln=ids
+%                 if oufti_doesCellStructureHaveMesh(celln, frame, cellList)
+%                     cell = oufti_getCellStructure(celln,frame,cellList);
+%                     box = cell.box;
+%                     mbox = box(1:2)+box(3:4)/2-1/2;
+%                     if pos1(1)<=mbox(1) && pos1(2)<=mbox(2) && pos2(1)>=mbox(1) && pos2(2)>=mbox(2)
+%                         mesh = cell.mesh;
+%                         mesh1 = min(min(mesh(:,1:2)),min(mesh(:,3:4)));
+%                         mesh2 = max(max(mesh(:,1:2)),max(mesh(:,3:4)));
+%                         if pos1(1)<=mesh1(1) && pos1(2)<=mesh1(2) && pos2(1)>=mesh2(1) && pos2(2)>=mesh2(2)
+%                             if isempty(find((selectedList-celln)==0,1))
+%                                 % Adding a cell to selectedList
+%                                 selectedList = [selectedList, celln];%#ok<AGROW>
+%                             else
+%                                 % Removing a cell from selectedList
+%                                 [n,k] = find((selectedList-celln)==0,1);
+%                                 selectedList = selectedList([1:k-1 k+1:end]);
+%                             end
+%                         end
+%                     end
+%                 elseif oufti_doesCellHaveContour(celln, frame, cellList)
+%                     cell = oufti_getCellStructure(celln, frame, cellList);
+%                     box = cell.box;
+%                     mbox = box(1:2)+box(3:4)/2-1/2;
+%                     if pos1(1)<=mbox(1) && pos1(2)<=mbox(2) && pos2(1)>=mbox(1) && pos2(2)>=mbox(2)
+%                         contour = cell.model;
+%                         limx = [min(contour(:,1)) max(contour(:,1))];
+%                         limy = [min(contour(:,2)) max(contour(:,2))];
+%                         if pos1(1)<=limx(1) && pos1(2)<=limy(2) && pos2(1)>=limx(1) && pos2(2)>=limy(2)
+%                             if isempty(find((selectedList-celln)==0,1))
+%                                 % Adding a cell to selectedList
+%                                 selectedList = [selectedList, celln];%#ok<AGROW>
+%                             else
+%                                 % Removing a cell from selectedList
+%                                 [~,k] = find((selectedList-celln)==0,1);
+%                                 selectedList = selectedList([1:k-1 k+1:end]);
+%                             end
+%                         end
+%                     end
+%                 end
+%             end
+%             displaySelectedCells();
+%             showCellData();
+%             if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end; groupSelectionRectH = [];
+%             groupSelectionRectH = [];
+%         end
+%         groupSelectionMode = false;
+%     end
+%     catch err
+%         if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end; groupSelectionRectH = [];
+%         groupSelectionRectH = [];
+%         return;
+%     end
+%   
+% end
+
+% function mousemove(hObject, eventdata)%#ok<INUSD>
+%     global handles1 imageHandle
+%     try
+%     if ~isempty(handles1) && strcmp(get(handles1.spotFinderPanel,'Visible'),'on')
+%         return;
+%     end
+%     if ishandle(imageHandle),delete(imageHandle.fig);end
+%     if hObject==handles.maingui
+%         ax = get(get(handles.impanel,'Children'),'Children');
+%         if iscell(ax), ax = ax{1}; end;
+%         extend = strcmp(hFig.SelectionType,'extend');
+%     else
+%         if ~ishandle(handles.himage), return; end
+%         himageStruct = get(handles.himage);
+%         ax = himageStruct.Parent;
+%         extend = strcmp(get(handles.hfig,'SelectionType'),'extend');
+%     end
+%     if isempty(ax), return; end
+%     pt = get(ax,'CurrentPoint');
+%     if isempty(pt), return; end
+%     hFig.Pointer = 'arrow'; % TODO: create more proper cursor control
+%     pt = round(pt(1,1:2));
+%     if pt(1)>0 && pt(2)>0 && pt(1)<imsizes(end,2) && pt(2)<imsizes(end,1)
+%         set(handles.celldata.coursor,'String',['x=' num2str(pt(1)) ', y=' num2str(pt(2))]);
+%     else
+%         set(handles.celldata.coursor,'String','');
+%     end
+%     if groupSelectionMode
+%         % selecting a group of cells: draw rectangle
+%         ps = get(ax,'CurrentPoint');
+%         pos = ps(1,1:2);
+%         if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end;
+%         if regionSelectionMode
+%             groupSelectionRectH = rectangle('Position',[min(pos,groupSelectionPosition),max([1,1],abs(pos-groupSelectionPosition))],...
+%                 'EdgeColor',[1 0 0],'LineStyle',':');
+%         else
+%             groupSelectionRectH = rectangle('Position',[min(pos,groupSelectionPosition),max([1,1],abs(pos-groupSelectionPosition))],...
+%                 'EdgeColor',[1 1 1],'LineStyle',':');
+%         end
+%     end
+%     % if gdisp % Awkward patch to make the behavior of log window same as zoom window
+%     %     set(handles.logcheck,'Value',1)
+%     % else
+%     %     set(handles.logcheck,'Value',0)
+%     % end
+%     catch err
+%         if ishandle(groupSelectionRectH), delete(groupSelectionRectH); end;
+%     end
+% end
+% 
+% function dragmouse(hObject, eventdata)
+%     mousemove(hObject, eventdata);
+%     if dragMode
+%         dragPositionNew = getmousepos;
+%         if isempty(dragPositionNew), dragMode=false; return; end
+%         apiHP = iptgetapi(handles.hpanel);
+%         pos = apiHP.getVisibleLocation();
+%         rect = apiHP.getVisibleImageRect();
+%         apiHP.setVisibleLocation(min(imsizes(end,2)-rect(3),max(0,pos(1)+dragPosition.x-dragPositionNew.x)),...
+%             min(imsizes(end,1)-rect(4),max(0,pos(2)+dragPosition.y-dragPositionNew.y)));
+%     end
+% end
+
 
 
 % --- Other GUI nested functions ---
