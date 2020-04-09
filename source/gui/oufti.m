@@ -46,7 +46,7 @@ function oufti
 % intxySelfC.c/cpp
 
 % clear oufti data from old sessions, if any
-versionNumber = 'Oufti - compiled:  August 25, 2015';
+versionNumber = 'Oufti - compiled:  April 9, 2020';
  %-------------------------------------------------------------------------
  %pragma function needed to include files for deployment
  %#function [createCellMovie intxySelfC intxyMultiC intxy2C aip truncateFile.pl gmdistribution VideoWriter]
@@ -1665,7 +1665,7 @@ function displayCellsForDrag(celln)
     if iscell(ax), ax = ax{1}; end;
     ax(2) = get(handles.himage,'parent');
     handles.cells = [];
-    col = dispMeshColor;
+    col = dispSelColor; % dispMeshColor;
     % k=1 is main window,
     % k=2 is zoomed image
 
@@ -5216,127 +5216,126 @@ function param = loadmesh(filename)
     disp(['Meshes loaded from file ' filename])
 end
 
-
 function refinecell(frame,lst)
 % this function runs the alignment again for the selected cells
 % only for algorithms 2-4
 global cellList cellListN p rawPhaseData se maskdx maskdy cellsToDragHistory imageForce
 
-if length(lst) > 10
-   refineAllParallel(frame,lst);
-    
-else
-
-
-    if checkparam(p,'invertimage','algorithm','erodeNum','meshStep','meshTolerance','meshWidth')
-        disp('Refining cells failed: one or more required parameters not provided.');
-        return
-    end
-    if ~oufti_isFrameNonEmpty(frame, cellList) || (isempty(lst) && isempty(cellsToDragHistory)), return; end;
-    if ~ismember(p.algorithm,[2 3 4]), disp('There is no refinement routine for algorithm 1'); return; end
-    if frame>size(rawPhaseData,3), return; end
-    if p.invertimage        
-        img = max(max(max(rawPhaseData)))-rawPhaseData(:,:,frame);
-    else
-        img = rawPhaseData(:,:,frame);
-    end
-    imge = img2imge(img,p.erodeNum,se);
-    imge16 = img2imge16(img,p.erodeNum,se);
-    if gpuDeviceCount == 1
-        try
-            thres = graythreshreg(gpuArray(imge),p.threshminlevel);
-        catch
-            thres = graythreshreg(imge,p.threshminlevel);
-        end
-    else
-        thres = graythreshreg(imge,p.threshminlevel);
-    end
-    if gpuDeviceCount == 1
-        try
-           [extDx,extDy,imageForce(frame)] = getExtForces(gpuArray(imge),gpuArray(imge16),gpuArray(maskdx),gpuArray(maskdy),p,imageForce(frame));
-           extDx = gather(extDx);
-           extDy = gather(extDy);
-           imageForce(frame).forceX = gather(imageForce(frame).forceX);
-           imageForce(frame).forceY = gather(imageForce(frame).forceY);
-        catch
-            [extDx,extDy,imageForce(frame)] = getExtForces(imge,imge16,maskdx,maskdy,p,imageForce(frame));
-        end
-    else
-        [extDx,extDy,imageForce(frame)] = getExtForces(imge,imge16,maskdx,maskdy,p,imageForce(frame));
-    end
-    if isempty(extDx), disp('Refining cells failed: unable to get energy'); return; end
-    n = 0;
-    tempCellList1 = cellList;
-    tempP = p;
-    tempSe = se;
-    tempMaskdx = maskdx;
-    tempMaskdy = maskdy;
-    tempCellListN = cellListN;
-    meshData = cell(1,numel(lst));
-    cellId   = cell(1,numel(lst));
-
     if ~isempty(cellsToDragHistory)
         disp('Refining recently dragged cells');
-        lst = cellsToDragHistory;
+        lst = [cellsToDragHistory lst];
     end
+    lst = unique(lst);
     
-     for celln = 1:length(lst)
-        pcCell = [];
-        cCell = [];
-        prevStruct = oufti_getCellStructure(lst(celln), frame, tempCellList1);
-        if(isempty(prevStruct)) continue; end
-        roiBox = prevStruct.box;
-        roiImg = imcrop(imge,roiBox);
-        roiBox(3:4) = [size(roiImg,2) size(roiImg,1)]-1;
-        roiExtDx = imcrop(extDx,roiBox);
-        roiExtDy = imcrop(extDy,roiBox);
-        % Now split the cell
-        if isfield(prevStruct,'mesh') && size(prevStruct.mesh,1)>1
-            mesh = prevStruct.mesh;
-            if ismember(tempP.algorithm,[2 3])
-                pcCell = splitted2model(mesh,tempP,tempSe,tempMaskdx,tempMaskdy);
-                pcCell = model2box(pcCell,roiBox,tempP.algorithm);
-                pcCell = align(roiImg,roiExtDx,roiExtDy,roiExtDx*0,pcCell,tempP,false,roiBox,thres,[frame lst(celln)]);
-                pcCell = box2model(pcCell,roiBox,tempP.algorithm);
-                cCell  = double(model2geom(pcCell,tempP.algorithm));
-            elseif ismember(tempP.algorithm,4)
-                pcCell = align4IM(mesh,tempP);
-                pcCell = model2box(pcCell,roiBox,tempP.algorithm);
-                cCell = align4Manual(roiImg,roiExtDx,roiExtDy,roiExtDx*0,pcCell,tempP,roiBox,thres,[frame lst(celln)]);
-                cCell = double(box2model(cCell,roiBox,tempP.algorithm));
-            end
-            if isempty(cCell), disp(['Cell ' num2str(lst(celln)) ' refinement failed: error fitting shape']); continue; end
-            mesh = model2MeshForRefine(cCell,tempP.meshStep,tempP.meshTolerance,tempP.meshWidth);
-            if (isempty(mesh) || size(mesh,1) == 1), disp(['Cell ' num2str(lst(celln)) ' refinement failed: error getting mesh']); continue; end
-            if size(pcCell,2)==1, model=cCell'; else model=cCell; end
-            prevStruct.model = single(model);
-            prevStruct.mesh = single(mesh);
-            roiBox(1:2) = floor(max([min(min(mesh(:,[1 3]))) min(min(mesh(:,[2 4])))]-tempP.roiBorder,1));
-            roiBox(3:4) = ceil(min([max(max(mesh(:,[1 3]))) max(max(mesh(:,[2 4])))]+tempP.roiBorder,[size(img,2) size(img,1)])-roiBox(1:2));
-            prevStruct.box = roiBox;
-            if ~isfield(prevStruct,'timelapse')
-                if ismember(0,tempCellListN(1)== tempCellListN) || length(tempCellListN)<=1
-                    prevStruct.timelapse = 0;
-                else
-                    prevStruct.timelapse = 1;
-                end
-            end
-            %%%cellList.meshData{frame}{cell} = getextradata(prevStruct);
-            meshData{celln} = prevStruct;
-            cellId{celln} = lst(celln);
-            n = n+1;
+    if length(lst) > 10
+       refineAllParallel(frame,lst);
+
+    else
+
+
+        if checkparam(p,'invertimage','algorithm','erodeNum','meshStep','meshTolerance','meshWidth')
+            disp('Refining cells failed: one or more required parameters not provided.');
+            return
         end
-     end
-    disp(['Refinement of ' num2str(n) ' cells succeeded'])
-    for ii = 1:numel(cellId)
-        if ~isempty(cellId{ii})
-            cellList = oufti_addCell(cellId{ii},frame,meshData{ii},cellList);
+        if ~oufti_isFrameNonEmpty(frame, cellList) || (isempty(lst) && isempty(cellsToDragHistory)), return; end;
+        if ~ismember(p.algorithm,[2 3 4]), disp('There is no refinement routine for algorithm 1'); return; end
+        if frame>size(rawPhaseData,3), return; end
+        if p.invertimage        
+            img = max(max(max(rawPhaseData)))-rawPhaseData(:,:,frame);
+        else
+            img = rawPhaseData(:,:,frame);
+        end
+        imge = img2imge(img,p.erodeNum,se);
+        imge16 = img2imge16(img,p.erodeNum,se);
+        if gpuDeviceCount == 1
+            try
+                thres = graythreshreg(gpuArray(imge),p.threshminlevel);
+            catch
+                thres = graythreshreg(imge,p.threshminlevel);
+            end
+        else
+            thres = graythreshreg(imge,p.threshminlevel);
+        end
+        if gpuDeviceCount == 1
+            try
+               [extDx,extDy,imageForce(frame)] = getExtForces(gpuArray(imge),gpuArray(imge16),gpuArray(maskdx),gpuArray(maskdy),p,imageForce(frame));
+               extDx = gather(extDx);
+               extDy = gather(extDy);
+               imageForce(frame).forceX = gather(imageForce(frame).forceX);
+               imageForce(frame).forceY = gather(imageForce(frame).forceY);
+            catch
+                [extDx,extDy,imageForce(frame)] = getExtForces(imge,imge16,maskdx,maskdy,p,imageForce(frame));
+            end
+        else
+            [extDx,extDy,imageForce(frame)] = getExtForces(imge,imge16,maskdx,maskdy,p,imageForce(frame));
+        end
+        if isempty(extDx), disp('Refining cells failed: unable to get energy'); return; end
+        n = 0;
+        tempCellList1 = cellList;
+        tempP = p;
+        tempSe = se;
+        tempMaskdx = maskdx;
+        tempMaskdy = maskdy;
+        tempCellListN = cellListN;
+        meshData = cell(1,numel(lst));
+        cellId   = cell(1,numel(lst));
+
+        for celln = 1:length(lst)
+            pcCell = [];
+            cCell = [];
+            prevStruct = oufti_getCellStructure(lst(celln), frame, tempCellList1);
+            if(isempty(prevStruct)) continue; end
+            roiBox = prevStruct.box;
+            roiImg = imcrop(imge,roiBox);
+            roiBox(3:4) = [size(roiImg,2) size(roiImg,1)]-1;
+            roiExtDx = imcrop(extDx,roiBox);
+            roiExtDy = imcrop(extDy,roiBox);
+            % Now split the cell
+            if isfield(prevStruct,'mesh') && size(prevStruct.mesh,1)>1
+                mesh = prevStruct.mesh;
+                if ismember(tempP.algorithm,[2 3])
+                    pcCell = splitted2model(mesh,tempP,tempSe,tempMaskdx,tempMaskdy);
+                    pcCell = model2box(pcCell,roiBox,tempP.algorithm);
+                    pcCell = align(roiImg,roiExtDx,roiExtDy,roiExtDx*0,pcCell,tempP,false,roiBox,thres,[frame lst(celln)]);
+                    pcCell = box2model(pcCell,roiBox,tempP.algorithm);
+                    cCell  = double(model2geom(pcCell,tempP.algorithm));
+                elseif ismember(tempP.algorithm,4)
+                    pcCell = align4IM(mesh,tempP);
+                    pcCell = model2box(pcCell,roiBox,tempP.algorithm);
+                    cCell = align4Manual(roiImg,roiExtDx,roiExtDy,roiExtDx*0,pcCell,tempP,roiBox,thres,[frame lst(celln)]);
+                    cCell = double(box2model(cCell,roiBox,tempP.algorithm));
+                end
+                if isempty(cCell), disp(['Cell ' num2str(lst(celln)) ' refinement failed: error fitting shape']); continue; end
+                mesh = model2MeshForRefine(cCell,tempP.meshStep,tempP.meshTolerance,tempP.meshWidth);
+                if (isempty(mesh) || size(mesh,1) == 1), disp(['Cell ' num2str(lst(celln)) ' refinement failed: error getting mesh']); continue; end
+                if size(pcCell,2)==1, model=cCell'; else model=cCell; end
+                prevStruct.model = single(model);
+                prevStruct.mesh = single(mesh);
+                roiBox(1:2) = floor(max([min(min(mesh(:,[1 3]))) min(min(mesh(:,[2 4])))]-tempP.roiBorder,1));
+                roiBox(3:4) = ceil(min([max(max(mesh(:,[1 3]))) max(max(mesh(:,[2 4])))]+tempP.roiBorder,[size(img,2) size(img,1)])-roiBox(1:2));
+                prevStruct.box = roiBox;
+                if ~isfield(prevStruct,'timelapse')
+                    if ismember(0,tempCellListN(1)== tempCellListN) || length(tempCellListN)<=1
+                        prevStruct.timelapse = 0;
+                    else
+                        prevStruct.timelapse = 1;
+                    end
+                end
+                %%%cellList.meshData{frame}{cell} = getextradata(prevStruct);
+                meshData{celln} = prevStruct;
+                cellId{celln} = lst(celln);
+                n = n+1;
+            end
+         end
+        disp(['Refinement of ' num2str(n) ' cells succeeded'])
+        for ii = 1:numel(cellId)
+            if ~isempty(cellId{ii})
+                cellList = oufti_addCell(cellId{ii},frame,meshData{ii},cellList);
+            end
         end
     end
+    cellsToDragHistory = [];
 end
-cellsToDragHistory = [];
-end
-
 
 function res = forcejoincells(frame,lst) 
     res = false;
