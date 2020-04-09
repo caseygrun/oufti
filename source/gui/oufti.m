@@ -1963,7 +1963,7 @@ function mainkeypress(hObject, eventdata)
         c = get(handles.hfig,'CurrentCharacter');
     else
         c = hFig.CurrentCharacter;
-    end
+    end    
     
     if isempty(c), return; end
     if double(c)==127 && hObject~=handles.selectgroupedit % delete key - deletes selected cells
@@ -2042,6 +2042,13 @@ function mainkeypress(hObject, eventdata)
 %     elseif strcmp(c,'y') || double(c)==121
         saveloadshiftfluo(2) % load shiftfluo
     end
+    
+    % for some reason after ~R2014b, any key press causes the figure to
+    % lose focus and subsequent key events to be ignored. as workaround, 
+    % get reference to nearest figure containing the UI control that 
+    % triggered this event so we can force focus back to that figure
+    fig = ancestor(hObject,'figure');
+    figure(fig);
 end
 
 function shiftfluomfn
@@ -3231,20 +3238,25 @@ function deselect_all()
     selectedList = [];
 end
 
-STATE_NONE = 0;
-STATE_MOUSE_DOWN = 5;
-STATE_DRAG_TO_SELECT = 1;
-STATE_ADDING_POINTS = 2;
-STATE_DRAGGING_CELLS = 3;
-STATE_CLICK_TO_SPLIT = 4;
-STATE_DRAG_FIELD = 6;
-
 mouseState = STATE_NONE;
 pointHistoryX = [];
 pointHistoryY = [];
+STATE_NONE = 0;
+STATE_MOUSE_DOWN = 1;
+STATE_DRAG_TO_SELECT = 2;
+STATE_DRAGGING_CELLS = 3;
+STATE_DRAG_FIELD = 4;
+STATE_ADDING_POINTS = 5;
+STATE_CLICK_TO_SPLIT = 6;
 
 
 function mousedown(hObject, eventdata)
+    % separate handling for spotViewer
+    if ~isempty(handles1) && isfield(handles1,'spotFinderPanel') && strcmp(get(handles1.spotFinderPanel,'Visible'),'on') 
+        show_spot(hObject, eventdata)
+        return
+    end
+    
     mouseState = STATE_NONE;
     
     % determine whether Shift/Control/Alt has been pressed
@@ -3378,7 +3390,7 @@ function mouseup(hObject, eventdata)
     end
     
     if is_tool_active(handles.addcell)
-        global p
+        global p;
         
         % adding cells
         if ~dblclick && ~control && max(imsizes(1:3,1))>0
@@ -3397,7 +3409,6 @@ function mouseup(hObject, eventdata)
             if ah(1) && ~iscell(ax), disp('Could not add point: cannot find axes'); return; end
             if iscell(ax), ax = ax{1}; end;
             ax(2) = get(handles.himage,'parent');
-%             cellDrawPositions = [cellDrawPositions;ps(1,1:2)]; % TODO: switch to pos
             
             pos = get_mouse_position(ax(1));
             cellDrawPositions = [cellDrawPositions;pos.x pos.y]; % TODO: switch to pos
@@ -3409,7 +3420,6 @@ function mouseup(hObject, eventdata)
                 cellDrawObjects = [cellDrawObjects plot(ax(k),cellDrawPositions(:,1),cellDrawPositions(:,2),'.-r')];%#ok<AGROW>
             end
 
-            % TODO: ??
         end
 
         % finishing manually adding cell: adding last point
@@ -3417,21 +3427,30 @@ function mouseup(hObject, eventdata)
             saveundo;
             makeCellFromPoints(isShiftPressed);
 
-            % TODO: ??
         end
     
     elseif splitSelectionMode
         celln = get_cell_at(pos);
         splitSelectionMode = false;
+
         if ~isempty(celln) 
-            forcesplitcellonclick(frame,celln,pos.x,pos.y) 
+            global p;
+            
+            % can't split cells with contours
+            if p.algorithm == 1
+                disp('Cell with no mesh cannot be split; deletee the cell and add two cells manually instead');
+            else
+                forcesplitcellonclick(frame,celln,pos.x,pos.y) 
+            end
         else
             disp('Manual splitting regime terminated');
         end
     elseif is_tool_active(handles.setpolarity)
-        % TODO
+        celln = get_cell_at(pos);
+        change_polarity(celln, pos)
     elseif is_tool_active(handles.removepolarity)
-        % TODO        
+        celln = get_cell_at(pos);
+        remove_polarity(celln);      
     elseif mouseState == STATE_DRAGGING_CELLS
         mouseState = STATE_NONE;
         
@@ -3633,6 +3652,79 @@ function finish_rubberband_selection(hObject, eventdata)%#ok<INUSD>
   
 end
 
+
+function change_polarity(cellId, pos)
+    cell = oufti_getCellStructure(cellId, frame, cellList);
+    if oufti_doesCellStructureHaveMesh(cellId, frame, cellList)
+        box = cell.box;
+        mesh = cell.mesh;
+        mn = ceil(size(mesh,1)/2);
+
+        % selecting stalk
+        if inpolygon(pos.x,pos.y,[mesh(mn:end,1);flipud(mesh(mn:end,3))],[mesh(mn:end,2);flipud(mesh(mn:end,4))])
+            if ~isfield(cell,'timelapse') || cell.timelapse || get(handles.runmode1,'value') % TODO correct
+                  cellList = reorientall(cellList,cellId,true);
+            else
+                cellList = oufti_addCell(cellId,frame,reorient(cell),cellList);
+                cellList = oufti_addFieldToCellList(cellId,frame,'polarity',1,cellList);
+            end
+            updateorientation(cellId)
+            disp(['The orientation of cell ' num2str(cellId) ' has been updated'])
+        else
+            if ~isfield(cell,'timelapse') || cell.timelapse || get(handles.runmode1,'value')
+                cellList = reorientall(cellList,cellId,false);
+            else
+                cellList = oufti_addFieldToCellList(cellId,frame,'polarity',1,cellList);
+            end
+            updateorientation(cellId)
+            disp(['The orientation of cell ' num2str(cellId) ' has been set'])
+        end
+    else
+        disp(['Cannot set orientation of cell ' num2str(cellId) ' with no mesh'])
+    end
+end
+
+function remove_polarity(cellId)
+    cell = oufti_getCellStructure(cellId, frame, CL);
+
+    % removing stalk
+    if ~isfield(cell,'timelapse') || cell.timelapse
+          cellList = removeorientationall(cellList,cellId);
+    else
+        cellList = oufti_addFieldToCellList(cellId,frame,'polarity',0,cellList);
+    end
+    updateorientation(cellId)
+    disp(['The orientation of cell ' num2str(cellId) ' has been removed'])
+end
+
+function show_spot(hObject, eventdata)
+    if isempty(imageHandle) || ~ishandle(imageHandle.fig) || isempty(spotlist), return; end
+    ps = get(imageHandle.ax,'CurrentPoint');
+    xlimit = get(imageHandle.ax,'XLim');
+    ylimit = get(imageHandle.ax,'YLim');
+    x = ps(1,1);
+    y = ps(1,2);
+    if x<xlimit(1) || x>xlimit(2) || y<ylimit(1) || y>ylimit(2), return; end
+    dst = (y-spotlist(:,8)).^2+(x-spotlist(:,9)).^2;
+    [mindst,minind] = min(dst);
+    if mindst>mean(xlimit(2)-xlimit(1),ylimit(2)-ylimit(1))^2/10, return; end
+    lst(minind) = ~lst(minind);
+    handles1.spotList{handles1.frame}{handles1.cell}.lst(minind) = lst(minind);
+    if lst(minind)
+        set(imageHandle.spots(minind),'Color',[1 0.1 0]);
+        disp('Selected spot:')
+    else
+        set(imageHandle.spots(minind),'Color',[0 0.8 0]);
+        disp('Unselected spot:')
+    end
+    spotlist = handles1.spotList{handles1.frame}{handles1.cell}.spotlist;
+    disp([' background: ' num2str(spotlist(minind,1))])
+    disp([' squared width: ' num2str(spotlist(minind,2))])
+    disp([' height: ' num2str(spotlist(minind,3))])
+    disp([' relative squared error: ' num2str(spotlist(minind,4))])
+    disp([' perimeter variance: ' num2str(spotlist(minind,5))])
+    disp([' filtered/unfiltered ratio: ' num2str(spotlist(minind,6))])
+end
 
 
 % function mousedown(hObject, eventdata)%#ok<INUSD>
