@@ -3,6 +3,7 @@ function sgn = getOneSignalContourM(contour,mbox,img,rsz)
     % not segmented in the way the mesh is). This is a faster but less
     % precise MATLAB-based version.
     % 
+    sgn = [];
     if length(contour)>1
         img2 = imcrop(img,mbox);
         if rsz>1

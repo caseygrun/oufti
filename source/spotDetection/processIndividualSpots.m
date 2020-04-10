@@ -1,4 +1,4 @@
-function [spotStructure, newImage] = processIndividualSpots(cellData,Cell,params,image,adjustMode)
+function [spotStructure, newImage,dispStructure] = processIndividualSpots(cellData,Cell,params,image,adjustMode)
 %--------------------------------------------------------------------------------------
 %--------------------------------------------------------------------------------------
 %function spotStructure = processIndividualSpots(cellData,Cell,params,image,adjustMode)
@@ -29,22 +29,20 @@ function [spotStructure, newImage] = processIndividualSpots(cellData,Cell,params
 %diamond = strel('square',5);
 try
  spotStructure.l                            = [];
- spotStructure.magnitude                    = [];
- spotStructure.w                            = [];
- spotStructure.h                            = [];
- spotStructure.b                            = [];
  spotStructure.d                            = [];
  spotStructure.x                            = [];
  spotStructure.y                            = [];
  spotStructure.positions                    = [];
- spotStructure.rsquared                         = [];
- spotStructure.confidenceInterval_b_h_w_x_y = [];
+ spotStructure.adj_Rsquared                     = [];
+ dispStructure.adj_Rsquared                     = [];
+ dispStructure.w                            = [];
+ dispStructure.h                            = [];
 if (isempty(cellData) || length(cellData.mesh) < 4),return; end
 newImage = [];
 
 scale             = params.scale; %Maximum radius from a peak to consider for fitting
-sigmaPsf          = params.sigmaPsf; %Radius that other spots should be blocked from a spot currently being fitted
-minThresh         = params.minThresh;     
+sigmaPsf          = params.spotRadius; %Radius that other spots should be blocked from a spot currently being fitted
+minThresh         = params.int_threshold;     
 lowPass           = params.lowPass;
 rawImage = imcrop(image,cellData.box);
 bgr = mean(mean(image));
@@ -83,13 +81,13 @@ dilatedCellContour = [dilatedCellContour(:,2),dilatedCellContour(:,1)];
 backgroundPixels = ~(logical(conv2(newImage,ones(3),'same')))+~dilatedCellMask;
 backgroundPixels1 = backgroundPixels(:) == 2;
 backgroundPixels2 = backgroundPixels(:) == 1;
-backgroundPixels = mode([backgroundPixels1 backgroundPixels2]);
-backgroundPixelsValues = rawImage(backgroundPixels);
+backgroundPixels = mode(single([backgroundPixels1 backgroundPixels2]));
+backgroundPixelsValues = rawImage(logical(backgroundPixels));
 numberOfSpots = bwconncomp(newRawImage,8);
 
 if isempty(numberOfSpots), return; end
 
-spotStructure = fitGaussians(cellData,numberOfSpots,rawImage,newRawImage,bgr,params,dilatedCellContour);
+[spotStructure,dispStructure] = fitGaussians(cellData,numberOfSpots,rawImage,newRawImage,bgr,params,dilatedCellContour);
 % % % % spotStructure = fitGaussiansFinal(cellData,spotStructure,rawImage,params,dilatedCellContour);
 
 catch err

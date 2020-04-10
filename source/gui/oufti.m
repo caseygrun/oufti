@@ -435,11 +435,11 @@ function changeDir()
 
     %find where oufti exists, modify that folder
     ouftiLocation = which('oufti');
-    ix = strfind(ouftiLocation,'/');
+    ix = strfind(ouftiLocation,filesep);
     ouftiLocation(ix(end):end) = [];
     
-    if exist([ouftiLocation,'/lastDir.mat'],'file')
-        load([ouftiLocation,'/lastDir.mat'],'lastDir')
+    if exist([ouftiLocation,filesep,'lastDir.mat'],'file')
+        load([ouftiLocation,filesep,'lastDir.mat'],'lastDir')
 		try
 			cd(lastDir)
 		catch
@@ -2344,7 +2344,7 @@ function drawLineageTree(cellList)
         set(0, 'CurrentFigure', handles.lineageTreeFigure)
         clf(handles.lineageTreeFigure,'reset');
     else
-        handles.lineageTreeFigure = figure();
+        handles.lineageTreeFigure = figure('Name','Lineage Tree');
     end
     
     % find largest cellId in use
@@ -6020,18 +6020,22 @@ end
 
 function res = slashsplit(str)
     % This function returns the highest level folder name from a path
-    split = splitstr('/', str);
-    split = splitstr('\', split{end});
+    % split = splitstr('/', str);
+    % split = splitstr('\', split{end});
+    split = splitstr(filesep, str);
     res = split{end};
 end
 
 function res = slashsplit2(str)
     % This function truncates the path to a folder leaving the two highest
     % level folder names
-    split = splitstr('/', str);
-    if length(split)>1, split = [split{end-1} '/' split{end}]; else split = split{end}; end
-    split = splitstr('\', split);
-    if length(split)>1, split = [split{end-1} '\' split{end}]; else split = split{end}; end
+    split = splitstr(filesep, str);
+    if length(split)>1, split = [split{end-1} filesep split{end}]; else split = split{end}; end
+
+    % split = splitstr('/', str);
+    % if length(split)>1, split = [split{end-1} '/' split{end}]; else split = split{end}; end
+    % split = splitstr('\', split);
+    % if length(split)>1, split = [split{end-1} '\' split{end}]; else split = split{end}; end
     res = split;
 end
 
