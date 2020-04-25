@@ -1514,7 +1514,7 @@ function updateslider
         set(handles.imslider,'min',1,'max',s,'Value',s+1-frame,'SliderStep',[1/(s-1) 1/(s-1)],'Enable','on');
         set(handles.currentframe,'String',[num2str(frame) ' of ' num2str(s)]);
     else
-        set(handles.imslider,'min',1,'max',s,'Value',s+1-frame,'SliderStep',[0 1],'Enable','on');
+        set(handles.imslider,'min',1,'max',1,'Value',1,'SliderStep',[0 0],'Enable','off');
         set(handles.currentframe,'String',[num2str(frame) ' of ' num2str(s)]);
     end
 end
