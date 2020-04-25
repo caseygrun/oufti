@@ -46,7 +46,7 @@ function oufti
 % intxySelfC.c/cpp
 
 % clear oufti data from old sessions, if any
-versionNumber = 'Oufti - compiled:  April 9, 2020';
+versionNumber = 'Oufti - compiled:  April 24, 2020';
  %-------------------------------------------------------------------------
  %pragma function needed to include files for deployment
  %#function [createCellMovie intxySelfC intxyMultiC intxy2C aip truncateFile.pl gmdistribution VideoWriter]
