@@ -635,7 +635,7 @@ elseif imsizes(1,1) >= 1600 || imsizes(1,2) >= 1600
                 [pcCell,~] = align(roiImg,roiExtDx,roiExtDy,roiExtDx*0,pcCell,p,false,roiBox,thres,[currentFrame celln+1]);
             elseif p.algorithm == 4
                 try
-                    pcCell = align4Initial(roiMask,p);
+                    pcCell = align4I(roiMask,p);
                 catch 
 
                     disp(['mesh not created for region ' num2str(reg) ' :consider decreasing fsmooth value'])
@@ -643,11 +643,11 @@ elseif imsizes(1,1) >= 1600 || imsizes(1,2) >= 1600
                     continue;
                 end
             end
-            pcCell1 = pcCell;
+            %pcCell1 = pcCell;
             % converting from box to global coordinates
             pcCell = box2model(pcCell,roiBox,p.algorithm);
             % obtaining the shape of the cell in geometrical representation
-             cCell = model2geom(pcCell,p.algorithm,coefPCA,mCell);
+            cCell = model2geom(pcCell,p.algorithm,coefPCA,mCell);
             %try splitting
             if p.algorithm == 4, isct = 0; else isct = intersections(cCell); end
             cellarea = statC.Area;
@@ -664,8 +664,9 @@ elseif imsizes(1,1) >= 1600 || imsizes(1,2) >= 1600
                 % boundary of the image - store it
                 cellStruct.algorithm = p.algorithm;
                 cellStruct.birthframe = currentFrame;
-                if size(pcCell,2)==1, model=pcCell1'; else model=pcCell1; end
+                if size(pcCell,2)==1, model=pcCell'; else model=pcCell; end
                 cellStruct.model = model;
+                %cellStruct.mesh = single(model2MeshForRefine(cCell,p.meshStep,p.meshTolerance,p.meshWidth));
                 cellStruct.polarity = 1;
                 cellStruct.ancestors = [];
                 cellStruct.descendants = [];
