@@ -16,7 +16,7 @@ function oufti_isFrameEmpty = oufti_isFrameEmpty(frame, CL)
 %The function checks if a frame is empty or not.
 %-------------------------------------------------------------------------- 
 %--------------------------------------------------------------------------
-oufti_isFrameEmpty = 0;
+oufti_isFrameEmpty = 1;
 if oufti_doesFrameExist(frame, CL)
     oufti_isFrameEmpty = isempty(CL.meshData{frame});
 end
