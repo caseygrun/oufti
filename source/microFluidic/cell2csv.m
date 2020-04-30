@@ -30,13 +30,13 @@ end
 jObj.setPaintsWhenStopped(true);  % default = false
 jObj.useWhiteDots(false);         % default = false (true is good for dark backgrounds)
 hh =  figure('pos',[(screenSize(3)/2)-100 (screenSize(4)/2)-100 100 100],'Toolbar','none',...
-             'Menubar','none','NumberTitle','off','DockControls','off');
+    'Menubar','none','NumberTitle','off','DockControls','off');
 pause(0.05);drawnow;
 pos = hh.Position;
 javacomponent(jObj.getComponent, [1,1,pos(3),pos(4)],hh);
 pause(0.01);drawnow;
 jObj.start;
-    % do some long operation...
+% do some long operation...
 tempCellList = cellArray;
 if ~isfield(tempCellList,'meshData')
     tempCellList = oufti_makeNewCellListFromOld(tempCellList);
@@ -44,268 +44,269 @@ end
 
 
 datei = fopen(filename,'w');
+debugi = 1;
 
 dateAndTimeDataProcessed = clock();
-fprintf(datei,'%s','%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
-fprintf(datei,'\n\n');
-fprintf(datei,'%s',['MicroFluidic ".csv" file named ' char(filename) ' processed on ---> ' num2str(dateAndTimeDataProcessed(2)) ...
-        '/' num2str(dateAndTimeDataProcessed(3)) '/' num2str(dateAndTimeDataProcessed(1)) ' at ' ...
-        num2str(dateAndTimeDataProcessed(4)) ':' num2str(dateAndTimeDataProcessed(5))]);
-fprintf(datei,'\n\n');
-fprintf(datei,'%s','%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
-fprintf(datei,'\n\n');
+fprintf(debugi,'%s','%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
+fprintf(debugi,'\n\n');
+fprintf(debugi,'%s',['MicroFluidic ".csv" file named ' char(filename) ' processed on ---> ' num2str(dateAndTimeDataProcessed(2)) ...
+    '/' num2str(dateAndTimeDataProcessed(3)) '/' num2str(dateAndTimeDataProcessed(1)) ' at ' ...
+    num2str(dateAndTimeDataProcessed(4)) ':' num2str(dateAndTimeDataProcessed(5))]);
+fprintf(debugi,'\n\n');
+fprintf(debugi,'%s','%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
+fprintf(debugi,'\n\n');
 try
     if ~iscell(whos('paramString'))
-       paramString = get(handles.params,'string');
+        paramString = get(handles.params,'string');
         for z=1:size(paramString,1)
-        for s=1:size(paramString,2)
-
-            var = eval('paramString{z,s}');
-
-            if size(var,1) == 0
-                var = '';
+            for s=1:size(paramString,2)
+                
+                var = eval('paramString{z,s}');
+                
+                if size(var,1) == 0
+                    var = '';
+                end
+                
+                if isnumeric(var) == 1
+                    var = num2str(var);
+                end
+                
+                fprintf(debugi,'# % s\n',var);
+                
             end
-
-            if isnumeric(var) == 1
-                var = num2str(var);
-            end
-
-            fprintf(datei,'# % s\n',var);
-
         end
-        end
-        fprintf(datei,'\n');
+        fprintf(debugi,'\n');
     end
 catch
 end
 fieldNamesCellList = {'ancestors'
-                      'birthframe'
-                      'box'
-                      'descendants'
-                      'divisions'
-                      'mesh'
-                      'length'
-                      'area'
-                      'polarity'
-                      'signal0'
-                      'spots'
-                      'objects'
-                      };
+    'birthframe'
+    'box'
+    'descendants'
+    'divisions'
+    'length'
+    'area'
+    'volume'
+    'polarity'
+    'signal0'
+    'signal1'
+    'signal2'
+    'mfi0'
+    'mfi1'
+    'mfi2'
+    'mesh'
+    'spots'
+    'objects'
+    };
 
-if exist('cellListN'),fprintf(datei,'$ cellListN');fprintf(datei,'% d',cellListN);end
-fprintf(datei,'\n');
-if exist('coefPCA'),fprintf(datei,'$ coefPCA');fprintf(datei,'% d',coefPCA);end
-fprintf(datei,'\n');
-if exist('mCell'),fprintf(datei,'$ mCell');fprintf(datei,'% d',mCell);end
-fprintf(datei,'\n');
-if exist('shiftfluo'),fprintf(datei,'$ shiftfluo');fprintf(datei,'% d',shiftfluo);end
-fprintf(datei,'\n');
-if exist('shiftframes')
+if exist('cellListN', 'var'),fprintf(debugi,'$ cellListN');fprintf(debugi,'% d',cellListN);end
+fprintf(debugi,'\n');
+if exist('coefPCA', 'var'),fprintf(debugi,'$ coefPCA');fprintf(debugi,'% d',coefPCA);end
+fprintf(debugi,'\n');
+if exist('mCell', 'var'),fprintf(debugi,'$ mCell');fprintf(debugi,'% d',mCell);end
+fprintf(debugi,'\n');
+if exist('shiftfluo', 'var'),fprintf(debugi,'$ shiftfluo');fprintf(debugi,'% d',shiftfluo);end
+fprintf(debugi,'\n');
+if exist('shiftframes', 'var')
     if isstruct(shiftframes)
         tempShiftFrames = (struct2cell(shiftframes))';
-        fprintf(datei,'$ shiftframes');
-        fprintf(datei,'% g',tempShiftFrames{1});
-        fprintf(datei,';');fprintf(datei,'% g',tempShiftFrames{2});
+        fprintf(debugi,'$ shiftframes');
+        fprintf(debugi,'% g',tempShiftFrames{1});
+        fprintf(debugi,';');fprintf(debugi,'% g',tempShiftFrames{2});
     else
-        fprintf(datei,'$ shiftframes');fprintf(datei,'% g',shiftframes);
+        fprintf(debugi,'$ shiftframes');fprintf(debugi,'% g',shiftframes);
     end
 end
-fprintf(datei,'\n');
-fprintf(datei,'\n');
+fprintf(debugi,'\n');
+fprintf(debugi,'\n');
 
-fprintf(datei,'%% parameter values\n');
+fprintf(debugi,'%% parameter values\n');
 fprintf(datei,'frameNumber,');
 for ii = 1:length(fieldNamesCellList)
     var = eval('fieldNamesCellList{ii}');
     fprintf(datei,'%s',var);
-    if ii < length(fieldNamesCellList),fprintf(datei,',');end   
+    if ii < length(fieldNamesCellList),fprintf(datei,',');end
 end
 fprintf(datei,',cellId;\n');
 
+% if cell geometry data is missing, calculate it
+tempCellList.meshData = getExtraDataMicroFluidic(tempCellList.meshData);
+
 for frame = 1:length(tempCellList.meshData)
     for cells = 1:length(tempCellList.meshData{frame})
-        fprintf(datei,'#%d,',frame);
+        fprintf(datei,'%d,',frame);
+        
+        % if cell geometry data is missing, calculate it
+        cellStruct = tempCellList.meshData{frame}{cells};
+%         if (~isfield(cellStruct,'length') || ~isfield(cellStruct,'area') || ~isfield(cellStruct,'volume'))
+%             tempCellList.meshData{frame}{cells} = getExtraDataMicroFluidic(cellStruct);
+%         end
+        
+        % for each field
         for ii = 1:length(fieldNamesCellList)
-		    switch fieldNamesCellList{ii}
-				case 'ancestors'
-                    if ~isfield(tempCellList.meshData{frame}{cells},'ancestors') || isempty(tempCellList.meshData{frame}{cells}.ancestors)
+            switch fieldNamesCellList{ii}
+                case 'ancestors'
+                    if ~isfield(cellStruct,'ancestors') || isempty(cellStruct.ancestors)
                         fprintf(datei,' ,');
                     else
-                        for jj = 1:length(tempCellList.meshData{frame}{cells}.ancestors) - 1
-                            fprintf(datei,'%g;',tempCellList.meshData{frame}{cells}.ancestors(jj));
+                        for jj = 1:length(cellStruct.ancestors) - 1
+                            fprintf(datei,'%g;',cellStruct.ancestors(jj));
                         end
-                        fprintf(datei,'%g,',tempCellList.meshData{frame}{cells}.ancestors(end));
+                        fprintf(datei,'%g,',cellStruct.ancestors(end));
                     end
-				
-				case 'birthframe'
-                    if ~isfield(tempCellList.meshData{frame}{cells},'birthframe') || isempty(tempCellList.meshData{frame}{cells}.birthframe)
+                    
+                case 'birthframe'
+                    if ~isfield(cellStruct,'birthframe') || isempty(cellStruct.birthframe)
                         fprintf(datei,' ,');
                     else
-                        for jj = 1:length(tempCellList.meshData{frame}{cells}.birthframe) - 1
-                            fprintf(datei,'%g;',tempCellList.meshData{frame}{cells}.birthframe(jj));
+                        for jj = 1:length(cellStruct.birthframe) - 1
+                            fprintf(datei,'%g;',cellStruct.birthframe(jj));
                         end
-                        fprintf(datei,'%g,',tempCellList.meshData{frame}{cells}.birthframe(end));
+                        fprintf(datei,'%g,',cellStruct.birthframe(end));
                     end
-				
-				case 'box'
-                    if ~isfield(tempCellList.meshData{frame}{cells},'box') || isempty(tempCellList.meshData{frame}{cells}.box)
+                    
+                case 'box'
+                    if ~isfield(cellStruct,'box') || isempty(cellStruct.box)
                         fprintf(datei,' ,');
                     else
-                        for jj = 1:length(tempCellList.meshData{frame}{cells}.box) - 1
-                            fprintf(datei,'%g;',tempCellList.meshData{frame}{cells}.box(jj));
+                        for jj = 1:length(cellStruct.box) - 1
+                            fprintf(datei,'%g;',cellStruct.box(jj));
                         end
-                        fprintf(datei,'%g,',tempCellList.meshData{frame}{cells}.box(end));
+                        fprintf(datei,'%g,',cellStruct.box(end));
                     end
-				
-				case 'descendants'
-                    if ~isfield(tempCellList.meshData{frame}{cells},'descendants') || isempty(tempCellList.meshData{frame}{cells}.descendants)
+                    
+                case 'descendants'
+                    if ~isfield(cellStruct,'descendants') || isempty(cellStruct.descendants)
                         fprintf(datei,' ,');
                     else
-                        for jj = 1:length(tempCellList.meshData{frame}{cells}.descendants) - 1
-                            fprintf(datei,'%g;',tempCellList.meshData{frame}{cells}.descendants(jj));
+                        for jj = 1:length(cellStruct.descendants) - 1
+                            fprintf(datei,'%g;',cellStruct.descendants(jj));
                         end
-                        fprintf(datei,'%g,',tempCellList.meshData{frame}{cells}.descendants(end));
+                        fprintf(datei,'%g,',cellStruct.descendants(end));
                     end
-				
-				case 'divisions'
-                    if ~isfield(tempCellList.meshData{frame}{cells},'divisions') || isempty(tempCellList.meshData{frame}{cells}.divisions)
+                    
+                case 'divisions'
+                    if ~isfield(cellStruct,'divisions') || isempty(cellStruct.divisions)
                         fprintf(datei,' ,');
                     else
-                        for jj = 1:length(tempCellList.meshData{frame}{cells}.divisions) - 1
-                            fprintf(datei,'%g;',tempCellList.meshData{frame}{cells}.divisions(jj));
+                        for jj = 1:length(cellStruct.divisions) - 1
+                            fprintf(datei,'%g;',cellStruct.divisions(jj));
                         end
-                        fprintf(datei,'%g,',tempCellList.meshData{frame}{cells}.divisions(end));
+                        fprintf(datei,'%g,',cellStruct.divisions(end));
                     end
-				
-				case 'mesh'
-                    if ~isfield(tempCellList.meshData{frame}{cells},'mesh') || isempty(tempCellList.meshData{frame}{cells}.mesh)
+                    
+                case 'mesh'
+                    if ~isfield(cellStruct,'mesh') || isempty(cellStruct.mesh)
                         fprintf(datei,' ,');
                     else
-                        for jj = 1:size(tempCellList.meshData{frame}{cells}.mesh,2) - 1
-                            fprintf(datei,'%g ',tempCellList.meshData{frame}{cells}.mesh(:,jj));
+                        for jj = 1:size(cellStruct.mesh,2) - 1
+                            fprintf(datei,'%g ',cellStruct.mesh(:,jj));
                             fprintf(datei,';');
                         end
-                        fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.mesh(:,end));
+                        fprintf(datei,'% g',cellStruct.mesh(:,end));
                         fprintf(datei,',');
                     end
-                case 'length'
-                    if ~isfield(tempCellList.meshData{frame}{cells},'length')
-                        if isfield(tempCellList.meshData{frame}{cells},'mesh') || isempty(tempCellList.meshData{frame}{cells}.mesh)
-                           mesh = tempCellList.meshData{frame}{cells}.mesh;
-                           stepLength = edist(mesh(2:end,1)+mesh(2:end,3),mesh(2:end,2)+mesh(2:end,4),...
-                                    mesh(1:end-1,1)+mesh(1:end-1,3),mesh(1:end-1,2)+mesh(1:end-1,4))/2;
-                           lengthOfCell = sum(stepLength);
-                           fprintf(datei,'% g',lengthOfCell);
-                           fprintf(datei,' ,');
-                        else
-                            fprintf(datei,' ,');
-                        end
+                case {'length', 'area', 'volume'}
+                    field = fieldNamesCellList{ii};
+                    if ~isfield(cellStruct, field )
+                        fprintf(datei,' ,');
                     else
-                        fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.length);
+                        fprintf(datei,'% g', cellStruct.(field) );
                         fprintf(datei,',');
                     end
-
-                case 'area'
-                      if ~isfield(tempCellList.meshData{frame}{cells},'area') 
-                          if isfield(tempCellList.meshData{frame}{cells},'mesh') || isempty(tempCellList.meshData{frame}{cells}.mesh)
-                              mesh = tempCellList.meshData{frame}{cells}.mesh;
-                              lng = size(mesh,1)-1;
-                              steparea = zeros(lng,1);
-                               for i=1:lng
-                                   steparea(i,1) = polyarea([mesh(i:i+1,1);mesh(i+1:-1:i,3)],[mesh(i:i+1,2);mesh(i+1:-1:i,4)]); 
-                               end
-                               areaOfCell = sum(steparea);
-                               fprintf(datei,'% g',areaOfCell);
-                               fprintf(datei,' ,');
-                          else     
-                            fprintf(datei,' ,');
-                          end
-                      else
-                        fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.area);
+                    
+                case 'polarity'
+                    if ~isfield(cellStruct,'polarity')
+                        fprintf(datei,' ,');
+                    else
+                        fprintf(datei,'% g',cellStruct.polarity);
                         fprintf(datei,',');
-                      end
-
-                 case 'polarity'
-                        if ~isfield(tempCellList.meshData{frame}{cells},'polarity') 
-                           fprintf(datei,' ,');
-                        else  
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.polarity);
-                           fprintf(datei,',');
-                        end
-
-                case 'signal0'
-                     if ~isfield(tempCellList.meshData{frame}{cells},'signal0') 
-                           fprintf(datei,' ,');
-                     else  
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.signal0);
-                           fprintf(datei,',');
-                     end
+                    end
+                    
+                case {'signal0', 'signal1', 'signal2'}
+                    field = fieldNamesCellList{ii};
+                    if ~isfield(cellStruct,field)
+                        fprintf(datei,' ,');
+                    else
+                        fprintf(datei,'% g',cellStruct.(field));
+                        fprintf(datei,',');
+                    end
+                case {'mfi0', 'mfi1', 'mfi2'}
+                    field = fieldNamesCellList{ii};
+                    signal = ['signal' field(end)];
+                    if ~isfield(cellStruct,signal) || ~isfield(cellStruct,'area')
+                        fprintf(datei,' ,');
+                    else
+                        mfi = sum(cellStruct.(signal)) / cellStruct.area;
+                        fprintf(datei,'% g', mfi);
+                        fprintf(datei,',');
+                    end
                 case 'spots'
-                     if ~isfield(tempCellList.meshData{frame}{cells},'spots') 
-                           fprintf(datei,' ,');
-                     elseif isempty(tempCellList.meshData{frame}{cells}.spots.l)
-                            fprintf(datei,' ,');
-                     else
-                         try
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.spots.l);
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.spots.d);
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.spots.x);
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.spots.y);
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.spots.positions);
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.spots.rsquared);
-                           fprintf(datei,',');
-                         catch
-                         end
-                     end
+                    if ~isfield(cellStruct,'spots')
+                        fprintf(datei,' ,');
+                    elseif isempty(cellStruct.spots.l)
+                        fprintf(datei,' ,');
+                    else
+                        try
+                            fprintf(datei,'% g',cellStruct.spots.l);
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.spots.d);
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.spots.x);
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.spots.y);
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.spots.positions);
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.spots.rsquared);
+                            fprintf(datei,',');
+                        catch
+                        end
+                    end
                 case 'objects'
-                     if ~isfield(tempCellList.meshData{frame}{cells},'objects') 
-                           fprintf(datei,' ,');
-                     elseif isempty(tempCellList.meshData{frame}{cells}.objects.outlines)
-                           fprintf(datei,' ,');
-                     else
-                           for jj = 1:size(tempCellList.meshData{frame}{cells}.objects.outlines,2)-1
-                               fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.outlines{jj}(:,1));
-                               fprintf(datei,';');
-                               fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.outlines{jj}(:,2));
-                               fprintf(datei,';');
-                               fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.pixels{jj});
-                               fprintf(datei,';');
-                               fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.pixelvals{jj});
-                               fprintf(datei,';');
-                               fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.area{jj});
-                               fprintf(datei,';');
-                           end
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.outlines{end}(:,1));
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.outlines{end}(:,2));
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.pixels{end});
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.pixelvals{end});
-                           fprintf(datei,';');
-                           fprintf(datei,'% g',tempCellList.meshData{frame}{cells}.objects.area{end});
-                           fprintf(datei,',');
-                     end
+                    if ~isfield(cellStruct,'objects')
+                        fprintf(datei,' ,');
+                    elseif isempty(cellStruct.objects.outlines)
+                        fprintf(datei,' ,');
+                    else
+                        for jj = 1:size(cellStruct.objects.outlines,2)-1
+                            fprintf(datei,'% g',cellStruct.objects.outlines{jj}(:,1));
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.objects.outlines{jj}(:,2));
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.objects.pixels{jj});
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.objects.pixelvals{jj});
+                            fprintf(datei,';');
+                            fprintf(datei,'% g',cellStruct.objects.area{jj});
+                            fprintf(datei,';');
+                        end
+                        fprintf(datei,'% g',cellStruct.objects.outlines{end}(:,1));
+                        fprintf(datei,';');
+                        fprintf(datei,'% g',cellStruct.objects.outlines{end}(:,2));
+                        fprintf(datei,';');
+                        fprintf(datei,'% g',cellStruct.objects.pixels{end});
+                        fprintf(datei,';');
+                        fprintf(datei,'% g',cellStruct.objects.pixelvals{end});
+                        fprintf(datei,';');
+                        fprintf(datei,'% g',cellStruct.objects.area{end});
+                        fprintf(datei,',');
+                    end
             end
         end
-            fprintf(datei,'%g,\n',tempCellList.cellId{frame}(cells));
+        fprintf(datei,'%g,\n',tempCellList.cellId{frame}(cells));
     end
 end
 
 fclose(datei);
-disp(['Analysis converted from ".mat" format to ".csv" format in file ' filename]); 
- jObj.stop;
- delete(hh)
+disp(['Analysis converted from ".mat" format to ".csv" format in file ' filename]);
+jObj.stop;
+delete(hh)
 %tar('cellAray.tgz','.');
 
-function d=edist(x1,y1,x2,y2)
-    % complementary for "getextradata", computes the length between 2 points
-    d=sqrt((x2-x1).^2+(y2-y1).^2);
-end
+    function d=edist(x1,y1,x2,y2)
+        % complementary for "getextradata", computes the length between 2 points
+        d=sqrt((x2-x1).^2+(y2-y1).^2);
+    end
 
 end
