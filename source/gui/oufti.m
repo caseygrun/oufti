@@ -1348,53 +1348,61 @@ end
 
 % --- End of GUI zoom and display nested functions ---
 
+function img = getImageData(imageDispMode, frame)
+    global rawPhaseData rawS1Data rawS2Data
+    img = [];
+    switch imageDispMode
+        case 1
+            
+            if ~isempty(who('rawPhaseData'))
+                if ~isempty(rawPhaseData)
+                    if frame<=imsizes(1,3)
+                        img = rawPhaseData(:,:,frame);
+                    end
+                end
+            end
+            %  case 2
+            %      if ~isempty(who('rawFMData'))
+            %          if ~isempty(rawFMData)
+            %              if frame<=imsizes(2,3)
+            %                  img = rawFMData(:,:,frame);
+            %              end
+            %          end
+            %      end
+        case 3
+            
+            if ~isempty(who('rawS1Data'))
+                if ~isempty(rawS1Data)
+                    if frame<=imsizes(3,3)
+                        img = rawS1Data(:,:,frame);
+                    end
+                end
+            end
+        case 4
+            
+            if ~isempty(who('rawS2Data'))
+                if ~isempty(rawS2Data)
+                    if frame<=imsizes(4,3)
+                        img = rawS2Data(:,:,frame);
+                    end
+                end
+            end
+        otherwise
+            %gdisp('No image loaded')
+            %return
+    end
+    if isempty(img), img = ones(imsizes(end,1:2)); end
+end
+
 function displayImage
     global rawPhaseData rawS1Data rawS2Data
     img = [];
     imsizes = updateimsizes(imsizes);
     %if max(imsizeMAX)<1, return; end
     if frame<1, frame=1; end
-    switch imageDispMode
-     case 1
-         
-         if ~isempty(who('rawPhaseData'))
-             if ~isempty(rawPhaseData)
-                 if frame<=imsizes(1,3)
-                    img = rawPhaseData(:,:,frame);
-                 end
-             end
-         end
-    %  case 2
-    %      if ~isempty(who('rawFMData'))
-    %          if ~isempty(rawFMData)
-    %              if frame<=imsizes(2,3)
-    %                  img = rawFMData(:,:,frame);
-    %              end
-    %          end
-    %      end
-     case 3
-         
-         if ~isempty(who('rawS1Data'))
-             if ~isempty(rawS1Data)
-                 if frame<=imsizes(3,3)
-                    img = rawS1Data(:,:,frame);
-                 end
-             end
-         end
-     case 4
-        
-         if ~isempty(who('rawS2Data'))
-             if ~isempty(rawS2Data)
-                 if frame<=imsizes(4,3)
-                    img = rawS2Data(:,:,frame);
-                 end
-             end
-         end
-     otherwise
-        %gdisp('No image loaded')
-        %return
-    end
-    if isempty(img), img = ones(imsizes(end,1:2)); end
+    
+    img = getImageData(imageDispMode, frame);
+    
     %figure(handles.maingui);
     dellist = [];
     if ishandle(handles.hpanel)
@@ -3392,9 +3400,18 @@ function mousemove(hObject, eventdata)
     
     % update status bar
     if pos.x>0 && pos.y>0 && pos.x<imsizes(end,2) && pos.y<imsizes(end,1)
+        x = round(pos.x);
+        y = round(pos.y);
+        img = getImageData(imageDispMode, frame);
+        if all([x y] > [0 0]) && all([x y] < size(img))
+            I = img(x, y);
+        else
+            I = 0;
+        end
         set(handles.celldata.coursor,'String',[...
-            'x=' num2str(round(pos.x))... 
-            ', y=' num2str(round(pos.y))]);
+            '(' num2str(x)... 
+            ',' num2str(y)...
+            ')=' num2str(I) ]);
     else
         set(handles.celldata.coursor,'String','');
     end
