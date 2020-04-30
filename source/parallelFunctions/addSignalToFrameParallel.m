@@ -23,7 +23,12 @@ function addSignalToFrameParallel(range,addsig,addas,cellListToRun,rsz,apr,shift
 %-------------------------------------------------------------------------------------
 
 global cellList rawPhaseData rawS1Data rawS2Data
+
+% clamp range to the length of cellList.meshData
+range(1) = min(max(1, range(1)), length(cellList.meshData));
+range(2) = min(max(1, range(2)), length(cellList.meshData));
 numFrames = (range(2)-range(1))+1;
+
 tempCellList = cellList.meshData(range(1):range(2));
 tempCellId    = cellList.cellId(range(1):range(2));
 if cellfun(@isempty,tempCellList), disp('no mesh data for requested frames');return;end
@@ -78,11 +83,11 @@ if length(find(addsig)) == 3
     end
 elseif length(find(addsig)) == 2
     if (~isempty(rawPhaseData) && ~isempty(rawS1Data))
-        if find(addsig) == [1,3] 
+        if all(find(addsig) == [1,3]) 
             tempData = {rawPhaseData(:,:,range(1):range(2)),rawS1Data(:,:,range(1):range(2))};
-        elseif find(addsig) == [1,4] && ~isempty(rawPhaseData) && ~isempty(rawS2Data)
+        elseif all(find(addsig) == [1,4]) && ~isempty(rawPhaseData) && ~isempty(rawS2Data)
             tempData = {rawPhaseData(:,:,range(1):range(2)),rawS2Data(:,:,range(1):range(2))};
-        elseif find(addsig) == [3,4] && ~isempty(rawS1Data) && ~isempty(rawS2Data)
+        elseif all(find(addsig) == [3,4]) && ~isempty(rawS1Data) && ~isempty(rawS2Data)
             tempData = {rawS1Data(:,:,range(1):range(2)),rawS2Data(:,:,range(1):range(2))};
         end
     end

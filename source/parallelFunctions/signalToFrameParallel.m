@@ -24,7 +24,7 @@ function signalArray=signalToFrameParallel(frameData,image,rsz,apr,isRawPhase)
 %--------------------------------------------------------------------------
 image = im2double(image);
 if isRawPhase, image = max(max(image))-image;end
-signalArray= cell(zeros(size(frameData)));
+signalArray= cell(size(frameData));
 for i=1:length(frameData)
     cellStruct  = frameData{i};
     if isfield(cellStruct,'mesh') && size(cellStruct.mesh,1)>1
