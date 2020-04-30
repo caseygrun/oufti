@@ -109,7 +109,7 @@ handles.objectGui = uimenu('Parent',handles.maingui,'Label','objectDetection','C
 %given cell in timelapse study
 handles.tools = uimenu('Parent',handles.maingui,'Label','Tools');
                 uimenu(handles.tools,'Label','cellCycleViewer','Callback','createCellMovie',...
-                        'separator','on','Accelerator','M');
+                        'Accelerator','M');
 
 %This menu item is to display spots structures array gathered  using spot
 %detection utility or the spotFinderF utility.
@@ -130,17 +130,17 @@ handles.signalStat = uimenu(handles.tools,'Label','signal statistics');
                 uimenu(handles.signalStat,'Label','demograph','Callback','demographFcn');
 %,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-                uimenu(handles.tools,'Label','display cell','Callback','dispcellFcn');
+                uimenu(handles.tools,'Label','display cell','Callback','dispcellFcn','separator','on');
                 
                 uimenu(handles.tools,'Label','display all cells','Callback','dispcellAllFcn');
                 
                 uimenu(handles.tools,'Label','growth curves','Callback','growthCurvesFcn');
-                uimenu(handles.tools,'Label','cellList filter','Callback','cellListFilterFcn');
-                uimenu(handles.tools,'Label','export cellList to csv','Callback','exportCellListFcn');
+                uimenu(handles.tools,'Label','cellList filter','Callback','cellListFilterFcn','separator','on');
+                uimenu(handles.tools,'Label','export cellList to CSV','Callback','exportCellListFcn');
                 uimenu(handles.tools,'Label','import csv to cellList','Callback','importCsvFcn');
                 
                 handles.lineageTreeMenu = uimenu(handles.tools,'Label','display lineage tree','Callback',@displayLineageTree,...
-                'Accelerator','T');
+                'Accelerator','T','separator','on');
 
 %----------------------------------------------------------------------------------------
 
