@@ -3065,60 +3065,60 @@ function makeCellFromPoints(askfornumber)
     if ishandle(cellDrawObjects), delete(cellDrawObjects); end
     cellDrawObjects = [];
     if size(ctr,1)<2, return; end
-        if p.getmesh, step = p.meshStep; else step = 1; end
-        % the BACKBONE is defined by ctr coordinates
-        width = p.cellwidth;
-        d=diff(ctr,1,1);
-        l=cumsum([0;sqrt((d.*d)*[1 ;1])]);
-        [l,i]=unique(l);
-        if length(l)<=1, return; end
-        ctr0=interp1(l,ctr(i,:),linspace(0,l(end),floor(l(end)/step+1)));
-        tolerance = 1;
-        while true
-            %p.meshStep,p.meshTolerance,p.meshWidth
-            ctr0(end,:) = ctr(end,:);
+    if p.getmesh, step = p.meshStep; else step = 1; end
+    % the BACKBONE is defined by ctr coordinates
+    width = p.cellwidth;
+    d=diff(ctr,1,1);
+    l=cumsum([0;sqrt((d.*d)*[1 ;1])]);
+    [l,i]=unique(l);
+    if length(l)<=1, return; end
+    ctr0=interp1(l,ctr(i,:),linspace(0,l(end),floor(l(end)/step+1)));
+    tolerance = 1;
+    while true
+        %p.meshStep,p.meshTolerance,p.meshWidth
+        ctr0(end,:) = ctr(end,:);
+        d = diff(ctr0,1,1);
+        l = cumsum([0;sqrt((d.*d)*[1 ;1])]);
+        ctr0 = spsmooth(l',ctr0',tolerance,linspace(0,l(end),floor(l(end)/step+1)))';
+        ctrd = ctr0(1:end-2,:)/2+ctr0(3:end,:)/2-ctr0(2:end-1,:);
+        if step^2/sqrt(max(sum(ctrd.^2,2)))>width*3 % ???
+            H = ceil(width*pi/2/step/2);
+            HA = H+1:-1:1;
+            HA = pi*HA/(2*sum(HA)-HA(1));
+            alpha = HA(H+1);
+            x=zeros(1,H+1);
+            y=zeros(1,H+1);
+            for i=H:-1:1
+                x(i) = x(i+1) - step*cos(alpha);
+                y(i) = y(i+1) + step*sin(alpha);
+                alpha = HA(i) + alpha;
+            end
+            y = -(y-y(1))*width/y(1);
+            x = x-x(1);
             d = diff(ctr0,1,1);
             l = cumsum([0;sqrt((d.*d)*[1 ;1])]);
-            ctr0 = spsmooth(l',ctr0',tolerance,linspace(0,l(end),floor(l(end)/step+1)))';
-            ctrd = ctr0(1:end-2,:)/2+ctr0(3:end,:)/2-ctr0(2:end-1,:);
-            if step^2/sqrt(max(sum(ctrd.^2,2)))>width*3 % ???
-                H = ceil(width*pi/2/step/2);
-                HA = H+1:-1:1;
-                HA = pi*HA/(2*sum(HA)-HA(1));
-                alpha = HA(H+1);
-                x=zeros(1,H+1);
-                y=zeros(1,H+1);
-                for i=H:-1:1
-                    x(i) = x(i+1) - step*cos(alpha);
-                    y(i) = y(i+1) + step*sin(alpha);
-                    alpha = HA(i) + alpha;
-                end
-                y = -(y-y(1))*width/y(1);
-                x = x-x(1);
-                d = diff(ctr0,1,1);
-                l = cumsum([0;sqrt((d.*d)*[1 ;1])]);
-                if l(end)/2<x(end)
-                    q = x<l(end)/2;
-                    y = [y(q) fliplr(y(q))];
-                    x = [x(q) fliplr(l(end)-x(q))];
-                else
-                    y = [y(1:end-1) ones(1,floor(l(end)-2*x(end)+1))*width fliplr(y(1:end-1))];
-                    x = [x(1:end-1) linspace(x(end),l(end)-x(end),floor(l(end)-2*x(end)+1)) l(end)-fliplr(x(1:end-1))];
-                end
-                ctr0 = interp1(l,ctr0,x);
-                if size(ctr0,1)<3, disp('Cell too short'); return; end
-                d2 = [[0 0]; ctr0(3:end,:)-ctr0(1:end-2,:); [0 0]];
-                d2l = sqrt(sum(d2.^2,2))+1E-10;
-                d3 = [d2(:,2)./d2l -d2(:,1)./d2l];
-                ctr2 = [ctr0+d3.*[y' y']/2;flipud(ctr0(1:end-1,:)-d3(1:end-1,:).*[y(1:end-1)' y(1:end-1)']/2)];
-                d = diff(ctr2,1,1);
-                l = cumsum([0;sqrt((d.*d)*[1 ;1])]);
-                cCell = interp1(l,ctr2,linspace(0,l(end),floor(l(end)/step+1)));
-                break
+            if l(end)/2<x(end)
+                q = x<l(end)/2;
+                y = [y(q) fliplr(y(q))];
+                x = [x(q) fliplr(l(end)-x(q))];
             else
-                tolerance=tolerance/5;
+                y = [y(1:end-1) ones(1,floor(l(end)-2*x(end)+1))*width fliplr(y(1:end-1))];
+                x = [x(1:end-1) linspace(x(end),l(end)-x(end),floor(l(end)-2*x(end)+1)) l(end)-fliplr(x(1:end-1))];
             end
+            ctr0 = interp1(l,ctr0,x);
+            if size(ctr0,1)<3, disp('Cell too short'); return; end
+            d2 = [[0 0]; ctr0(3:end,:)-ctr0(1:end-2,:); [0 0]];
+            d2l = sqrt(sum(d2.^2,2))+1E-10;
+            d3 = [d2(:,2)./d2l -d2(:,1)./d2l];
+            ctr2 = [ctr0+d3.*[y' y']/2;flipud(ctr0(1:end-1,:)-d3(1:end-1,:).*[y(1:end-1)' y(1:end-1)']/2)];
+            d = diff(ctr2,1,1);
+            l = cumsum([0;sqrt((d.*d)*[1 ;1])]);
+            cCell = interp1(l,ctr2,linspace(0,l(end),floor(l(end)/step+1)));
+            break
+        else
+            tolerance=tolerance/5;
         end
+    end
     % Generate the strusture to record
     if p.getmesh
         if size(cCell,1)<3, disp('Cell addition failed: error defining shape'); return; end
@@ -3131,18 +3131,18 @@ function makeCellFromPoints(askfornumber)
         cellStructure.model = single(cCell);
     end
     tlapse = false; % determine the timelapse mode
-%     if length(cellList)>frame;
-%         for cell=1:length(cellList{frame})
-%             if cell<=length(cellList{frame}) && ~isempty(cellList{frame}{cell}) && isfield(cellList{frame}{cell},'timelapse')
-%                 if cellList{frame}{cell}.timelapse
-%                     tlapse = true;
-%                 else
-%                     tlapse = false;
-%                 end
-%                 break
-%             end
-%         end
-%     end
+    %     if length(cellList)>frame;
+    %         for cell=1:length(cellList{frame})
+    %             if cell<=length(cellList{frame}) && ~isempty(cellList{frame}{cell}) && isfield(cellList{frame}{cell},'timelapse')
+    %                 if cellList{frame}{cell}.timelapse
+    %                     tlapse = true;
+    %                 else
+    %                     tlapse = false;
+    %                 end
+    %                 break
+    %             end
+    %         end
+    %     end
     for celln=1:oufti_getFrameLength(frame, cellList);
         %~isempty(cellList{frame}{celln}) && isfield(cellList{frame}{celln},'timelapse')
         if oufti_doesCellExist(celln, frame, cellList)
@@ -3164,16 +3164,16 @@ function makeCellFromPoints(askfornumber)
     end
     % Determine the cell number
     if ~askfornumber
-%         if length(cellList)>=frame;
-%             for cell=1:length(cellList{frame})+1
-%                 if cell<=length(cellList{frame}) && (isempty(cellList{frame}{cell}) ...
-%                         || ~isfield(cellList{frame}{cell},'mesh') || length(cellList{frame}{cell}.mesh)<=1)
-%                     break
-%                 end
-%             end
-%         else
-%             cell=1;
-%         end
+        %         if length(cellList)>=frame;
+        %             for cell=1:length(cellList{frame})+1
+        %                 if cell<=length(cellList{frame}) && (isempty(cellList{frame}{cell}) ...
+        %                         || ~isfield(cellList{frame}{cell},'mesh') || length(cellList{frame}{cell}.mesh)<=1)
+        %                     break
+        %                 end
+        %             end
+        %         else
+        %             cell=1;
+        %         end
         
         celln = getDaughterNum();
         if isempty(celln) && sum(~cellfun(@isempty,(cellList.cellId))) == 0, celln = 1;end
@@ -3230,8 +3230,8 @@ function makeCellFromPoints(askfornumber)
     cellStructure.stage = 1;
     box = [max(floor(min(cCell)+1-p.roiBorder),1) min(ceil(max(cCell)-1+p.roiBorder),imsizes(end,2:-1:1))];
     cellStructure.box = [box(1:2) box(3:4)-box(1:2)+1];
-%     cellList.meshData{frame}{celln} = cellStructure;
-	cellList = oufti_addCell(celln, frame, cellStructure, cellList);
+    %     cellList.meshData{frame}{celln} = cellStructure;
+    cellList = oufti_addCell(celln, frame, cellStructure, cellList);
     cellListN(frame) = oufti_getFrameLength(frame, cellList); %length(cellList{frame});
     selectedList = celln;
     disp(['Adding a cell succeeded: cell ' num2str(celln) ' added'])
@@ -4975,7 +4975,7 @@ function loadimages(n,folder)
         imageForce(ii).forceY = [];
     end
     if  ~isempty(cellList.meshData{1}) && sum(cellfun(@isempty,cellList.meshData)) ~= numImages || (numel(cellList.meshData) == 1 && ~isempty(cellList.meshData{1}))
-        newData = questdlg('New Dataset?','new cellList','yes','no','yes');
+        newData = questdlg('Close current cell data and create new dataset?','Create new dataset?','yes','no','yes');
          switch newData
              case 'yes'
                  clear global cellList;
