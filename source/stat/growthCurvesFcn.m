@@ -26,10 +26,11 @@ function growthCurvesFcn
 global cellList  
 
 if sum(cellfun(@numel,cellList.meshData)) == 0,disp('First load cell meshes'),return;end
-try
+% try
 [dataStr,hdl] = getLLoCurves(cellList,0,0);
 set(gcf,'name','growth curves');
-set(gcf,'NumberTitle','off');colormap cc;
+set(gcf,'NumberTitle','off');
+colormap parula;
 colorbar
 set(hdl,'colormap',cc);
 
