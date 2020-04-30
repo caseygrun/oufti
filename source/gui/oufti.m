@@ -354,8 +354,8 @@ handles.aligntest   = uicontrol(handles.testpanel,'units','pixels','Position',[1
 screenSize = get(0,'ScreenSize');
 %-----------------------------------------
 %
-if screenSize(4)<=840, pos_ = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos_(1) pos_(2)-50 pos_(3) 700]); delete(pos_); end
-if screenSize(4)<=740, pos_ = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos_(1) pos_(2)-100 pos_(3) 600]); delete(pos_); end
+if screenSize(4)<=840, pos_ = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos_(1) pos_(2)-50 pos_(3) 700]); end
+if screenSize(4)<=740, pos_ = [screenSize(1:2) screenSize(3:4)-40]; set(hFig,'position', [pos_(1) pos_(2)-100 pos_(3) 600]); end
 handles.hfig = figure('Toolbar','none','Menubar','none','Name','Zoomed image','NumberTitle','off','IntegerHandle','off',...
                 'Visible','off','CloseRequestFcn',@hfigclosereq,'windowButtonDownFcn',@mousedown,...
                 'windowButtonUpFcn',@mouseup,...
