@@ -3440,7 +3440,12 @@ function mouseup(hObject, eventdata)
             
             % add next point
             pos = get_mouse_position(ax(1));
-            cellDrawPositions = [cellDrawPositions; pos.x pos.y];
+            if isempty(pos)
+                pos = get_mouse_position(ax(2));
+            end
+            if ~isempty(pos)
+                cellDrawPositions = [cellDrawPositions; pos.x pos.y];
+            end
             
             % draw partial cell
             if ishandle(cellDrawObjects), delete(cellDrawObjects); end
