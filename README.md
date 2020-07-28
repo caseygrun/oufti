@@ -1,9 +1,10 @@
-This is a fork of the Oufti software package, to allow correction lineage assignment errors and other improvements to the user interface. This version also supports more modern versions of MATLAB. 
+[![DOI](https://zenodo.org/badge/188876726.svg)](https://zenodo.org/badge/latestdoi/188876726)
 
+This is a fork of the [Oufti](http://www.oufti.org) software package, to allow correction lineage assignment errors and other improvements to the user interface. This version also supports more modern versions of MATLAB. 
 
 ## Prerequisites
 
-Updated to support MATLAB R2018b. Only the Mac version of oufti is supported in this fork at this time. 
+Updated to support MATLAB R2018b. Both Mac and PC versions are supported.  
 
 In addition, the following toolboxes are required:
 
