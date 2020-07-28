@@ -286,7 +286,7 @@ try
                 waitForState(newJob, 'finished');
                 outputMessages = get(alltasks, 'CommandWindowOutput');
             else
-                set(alltasks, 'CaptureDiary', false);
+                set(alltasks, 'CaptureDiary', num2cell(false(numel(alltasks), 1)));
                 submit(newJob);
                 disp('Awaiting results');
                 wait(newJob);
@@ -375,7 +375,9 @@ catch ME1
                 waitForState(newJob, 'finished');
                 outputMessages = get(alltasks, 'CommandWindowOutput');
             else
-                set(alltasks, 'CaptureDiary', false);
+                % need to set to a vector the same length as `allTasks`
+                % or you will get an obscure error about vectorized sets
+                set(alltasks, 'CaptureDiary', false(numel(alltasks)));
                 submit(newJob);
                 disp('Awaiting results');
                 wait(newJob);
@@ -416,6 +418,11 @@ catch ME1
                 cellTempParts = newJob.fetchOutputs;
             end
         end
+        
+    else
+        % if some other exception occurred, we want to rethrow so the error
+        % message is hopefully helpful
+        rethrow(ME1)
     end
     
 end
